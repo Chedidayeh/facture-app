@@ -4,6 +4,7 @@ import bigquery from "@/lib/bigquery";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const user_type = searchParams.get("user_type") || "all";
+  const range = searchParams.get("range") || "90d";
 
   const userTypeCondition =
     user_type === "all" ? "" : `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`;

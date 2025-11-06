@@ -4,7 +4,7 @@ import bigquery from "@/lib/bigquery";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const user_type = searchParams.get("user_type") || "all";
-  const range = searchParams.get("range") || "7d";
+  const range = searchParams.get("range") || "90d";
 
   const userTypeCondition =
     user_type === "all"
@@ -22,8 +22,11 @@ export async function GET(request: Request) {
   };
 
   const selectedDays = dayMap[range] || dayMap["7d"];
+  
+  // Get the range in days for filtering eligible users
   const rangeInDays = parseInt(range.replace("d", ""));
 
+  // Build dynamic SELECT expressions
   const selectClauses: string[] = [];
   const completedClauses: string[] = [];
 
@@ -38,9 +41,10 @@ export async function GET(request: Request) {
     `);
   }
 
+  // Join clauses for the final SELECT
   const dynamicSelect = [...selectClauses, ...completedClauses].join(",\n");
 
-  // ✅ Build final SQL query
+  // ✅ Build final SQL query dynamically
   const query = `
 WITH users AS (
   SELECT
@@ -56,42 +60,39 @@ WITH users AS (
 
 retention AS (
   SELECT
-    -- ✅ Eligible users (created within the selected range window)
+    -- Eligible users (created within the selected range)
     ${selectedDays
       .map(
-        (day) => `
-      COUNTIF(
-        DATE(created_at) IS NULL OR
-        (DATE(created_at) > DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeInDays} DAY)
-         AND DATE(created_at) <= CURRENT_DATE())
-      ) AS eligible_${day}`
+        (day) => {
+          const dayThreshold = getDayThreshold(day);
+          return `COUNTIF((DATE(created_at) IS NULL OR (DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL ${dayThreshold} DAY) AND DATE(created_at) > DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeInDays + 1} DAY)))) AS eligible_${day}`;
+        }
       )
       .join(",\n")},
 
-    -- ✅ Active users (with progress within the selected range)
+    -- Active users (created within the selected range)
     ${selectedDays
       .map(
-        (day) => `
-      COUNTIF(
-        JSON_QUERY(progress, '$.${day}') IS NOT NULL AND
-        (DATE(created_at) > DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeInDays} DAY)
-         AND DATE(created_at) <= CURRENT_DATE())
-      ) AS ${day}_active`
+        (day) =>
+          `COUNTIF(JSON_QUERY(progress, '$.${day}') IS NOT NULL AND (DATE(created_at) IS NULL OR (DATE(created_at) > DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeInDays} DAY) AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL ${
+            day.replace("day", "") === "1" ? "1" : parseInt(day.replace("day", "")) + 1
+          } DAY)))) AS ${day}_active`
       )
       .join(",\n")},
 
-    -- ✅ Completed users (all exercises completed in that day)
+    -- Completed exercises retention (created within the selected range)
     ${selectedDays
       .map(
         (day) => `
-      COUNTIF(
-        (DATE(created_at) > DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeInDays} DAY)
-         AND DATE(created_at) <= CURRENT_DATE())
-        AND (
-          SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.${day}'))
-          FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.${day}')) AS ex
-        )
-      ) AS ${day}_completed_active`
+    COUNTIF(
+      (DATE(created_at) IS NULL OR (DATE(created_at) > DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeInDays} DAY) AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL ${
+        day.replace("day", "") === "1" ? "1" : parseInt(day.replace("day", "")) + 1
+      } DAY)))
+      AND (
+        SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.${day}'))
+        FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.${day}')) AS ex
+      )
+    ) AS ${day}_completed_active`
       )
       .join(",\n")}
   FROM users
@@ -102,6 +103,13 @@ SELECT
 FROM retention;
 `;
 
+  // ✅ Execute query
   const [rows] = await bigquery.query(query);
   return NextResponse.json(rows[0]);
 }
+
+// Helper function to get the minimum days required for a metric
+const getDayThreshold = (day: string): number => {
+  const dayNum = parseInt(day.replace("day", ""));
+  return dayNum - 1; // day1 = 0 days old, day7 = 6 days old
+};

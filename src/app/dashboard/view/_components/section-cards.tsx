@@ -218,7 +218,7 @@ export function SectionCards() {
                     The system looks at all users and checks who had any activity within the past week.
                   </li>
                   <li>
-                    Only users who actually did something — like studying, training, or interacting — are counted as active.
+                    Only users who actually did any progress.
                   </li>
                 </ul>
 

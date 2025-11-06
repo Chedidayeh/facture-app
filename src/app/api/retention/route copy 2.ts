@@ -5,7 +5,6 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const user_type = searchParams.get("user_type") || "all";
 
-  // Build the user_type condition dynamically
   const userTypeCondition =
     user_type === "all" ? "" : `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`;
 
@@ -13,7 +12,7 @@ export async function GET(request: Request) {
 WITH users AS (
   SELECT
     JSON_VALUE(data, '$.email') AS email,
-    TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)) AS created_at,
+    SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)) AS created_at,
     JSON_QUERY(data, '$.progress') AS progress
   FROM
     \`keshah-app.firestore_export.users_raw_latest\`
@@ -24,33 +23,27 @@ WITH users AS (
 
 retention AS (
   SELECT
-    -- Default retention (any progress)
-    COUNTIF(DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AS eligible_day1,
-    COUNTIF(DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)) AS eligible_day3,
-    COUNTIF(DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) AS eligible_day7,
-    COUNTIF(DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 15 DAY)) AS eligible_day15,
-    COUNTIF(DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)) AS eligible_day30,
-    COUNTIF(DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY)) AS eligible_day60,
-    COUNTIF(DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)) AS eligible_day90,
+    -- Eligible users (created_at <= N days ago OR missing created_at)
+    COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AS eligible_day1,
+    COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 4 DAY)) AS eligible_day3,
+    COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY)) AS eligible_day7,
+    COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY)) AS eligible_day15,
+    COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 31 DAY)) AS eligible_day30,
+    COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 61 DAY)) AS eligible_day60,
+    COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 91 DAY)) AS eligible_day90,
 
-    COUNTIF(JSON_QUERY(progress, '$.day1') IS NOT NULL
-            AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AS day1_active,
-    COUNTIF(JSON_QUERY(progress, '$.day3') IS NOT NULL
-            AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)) AS day3_active,
-    COUNTIF(JSON_QUERY(progress, '$.day7') IS NOT NULL
-            AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)) AS day7_active,
-    COUNTIF(JSON_QUERY(progress, '$.day15') IS NOT NULL
-            AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 15 DAY)) AS day15_active,
-    COUNTIF(JSON_QUERY(progress, '$.day30') IS NOT NULL
-            AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)) AS day30_active,
-    COUNTIF(JSON_QUERY(progress, '$.day60') IS NOT NULL
-            AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY)) AS day60_active,
-    COUNTIF(JSON_QUERY(progress, '$.day90') IS NOT NULL
-            AND DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)) AS day90_active,
+    -- Active users (any progress)
+    COUNTIF(JSON_QUERY(progress, '$.day1') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))) AS day1_active,
+    COUNTIF(JSON_QUERY(progress, '$.day3') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 4 DAY))) AS day3_active,
+    COUNTIF(JSON_QUERY(progress, '$.day7') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY))) AS day7_active,
+    COUNTIF(JSON_QUERY(progress, '$.day15') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY))) AS day15_active,
+    COUNTIF(JSON_QUERY(progress, '$.day30') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 31 DAY))) AS day30_active,
+    COUNTIF(JSON_QUERY(progress, '$.day60') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 61 DAY))) AS day60_active,
+    COUNTIF(JSON_QUERY(progress, '$.day90') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 91 DAY))) AS day90_active,
 
     -- Completed exercises retention
     COUNTIF(
-      DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+      (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
       AND (
         SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.day1'))
         FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day1')) AS ex
@@ -58,7 +51,7 @@ retention AS (
     ) AS day1_completed_active,
 
     COUNTIF(
-      DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 3 DAY)
+      (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 4 DAY))
       AND (
         SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.day3'))
         FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day3')) AS ex
@@ -66,7 +59,7 @@ retention AS (
     ) AS day3_completed_active,
 
     COUNTIF(
-      DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY)
+      (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY))
       AND (
         SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.day7'))
         FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day7')) AS ex
@@ -74,7 +67,7 @@ retention AS (
     ) AS day7_completed_active,
 
     COUNTIF(
-      DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 15 DAY)
+      (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 16 DAY))
       AND (
         SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.day15'))
         FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day15')) AS ex
@@ -82,7 +75,7 @@ retention AS (
     ) AS day15_completed_active,
 
     COUNTIF(
-      DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+      (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 31 DAY))
       AND (
         SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.day30'))
         FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day30')) AS ex
@@ -90,7 +83,7 @@ retention AS (
     ) AS day30_completed_active,
 
     COUNTIF(
-      DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 60 DAY)
+      (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 61 DAY))
       AND (
         SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.day60'))
         FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day60')) AS ex
@@ -98,7 +91,7 @@ retention AS (
     ) AS day60_completed_active,
 
     COUNTIF(
-      DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+      (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 91 DAY))
       AND (
         SELECT COUNTIF(JSON_VALUE(ex, '$.is_completed') = 'true') = ARRAY_LENGTH(JSON_EXTRACT_ARRAY(progress, '$.day90'))
         FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day90')) AS ex
