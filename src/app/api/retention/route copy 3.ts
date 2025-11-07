@@ -6,18 +6,32 @@ export async function GET(request: Request) {
   const user_type = searchParams.get("user_type") || "all";
   const range = searchParams.get("range") || "lifetime";
 
-  const startDate = searchParams.get("start_date") || null;
+  const startDateParam = searchParams.get("start_date"); // string | null
+  let adjustedStartDate: string | null = null;
+
+  if (startDateParam) {
+    const start = new Date(startDateParam);
+    start.setDate(start.getDate() - 1); // subtract 1 day
+    adjustedStartDate = start.toISOString().slice(0, 10);
+  }
+
+  // Now use adjustedStartDate in your query
   const endDate = new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
-  const useCustomRange = startDate !== null && endDate !== null;
+  const useCustomRange = adjustedStartDate !== null && endDate !== null;
 
   // Detect if we are in lifetime mode
   const isLifetime = range === "lifetime" && !useCustomRange;
 
   // Relative range days (+1 for edge cases)
-  const rangeDays = !isLifetime && !useCustomRange ? parseInt(range.replace("d", "")) + 1 : null;
+  const rangeDays =
+    !isLifetime && !useCustomRange
+      ? parseInt(range.replace("d", "")) + 1
+      : null;
 
   const userTypeCondition =
-    user_type === "all" ? "" : `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`;
+    user_type === "all"
+      ? ""
+      : `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`;
 
   // Range filtering
   let rangeFilter = "";
@@ -25,7 +39,7 @@ export async function GET(request: Request) {
     rangeFilter = `
       AND JSON_VALUE(data, '$.created_at._seconds') IS NOT NULL
       AND DATE(SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)))
-          BETWEEN DATE('${startDate}') AND DATE('${endDate}')
+          BETWEEN DATE('${adjustedStartDate}') AND DATE('${endDate}')
     `;
   } else if (!isLifetime) {
     rangeFilter = `
@@ -129,9 +143,10 @@ FROM retention;
   // Optional: calculate days in custom range
   let customRangeDays = null;
   if (useCustomRange) {
-    const start = new Date(startDate!);
+    const start = new Date(adjustedStartDate!);
     const end = new Date(endDate!);
-    customRangeDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    customRangeDays =
+      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
   }
 
   const [rows] = await bigquery.query(query);

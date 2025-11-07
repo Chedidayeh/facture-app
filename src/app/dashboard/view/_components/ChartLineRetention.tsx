@@ -22,7 +22,7 @@ import {
   ChartTooltip,
 } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
-import { Info } from "lucide-react";
+import { Info, MoreVertical } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -31,6 +31,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type RetentionApiResponse = {
   day1_retention: number;
@@ -54,6 +67,8 @@ type RetentionApiResponse = {
   day90_retention: number;
   day90_completed_retention: number;
   day90_users: number;
+  customRangeDays?: number;
+  isCustomRange?: boolean;
 };
 
 type ChartPoint = {
@@ -63,11 +78,25 @@ type ChartPoint = {
   users: number;
 };
 
-// Update chartConfig with red and blue
-// const chartConfig = {
-//   retention: { label: "Retention %", color: "#007bff" },         // Blue
-//   completedRetention: { label: "Completed Exercises %", color: "#ff4d4f" }, // Red
-// } satisfies ChartConfig;
+// Define which days to include for each range (must match route.ts logic)
+const dayMap: Record<string, string[]> = {
+  "3d": ["day1", "day3"],
+  "7d": ["day1", "day3", "day7"],
+  "15d": ["day1", "day3", "day7", "day15"],
+  "30d": ["day1", "day3", "day7", "day15", "day30"],
+  "60d": ["day1", "day3", "day7", "day15", "day30", "day60"],
+  "90d": ["day1", "day3", "day7", "day15", "day30", "day60", "day90"],
+  lifetime: ["day1", "day3", "day7", "day15", "day30", "day60", "day90"],
+};
+
+// Helper function to get eligible days based on range days
+const getEligibleDays = (rangeDays: number): string[] => {
+  const allDays = ["day1", "day3", "day7", "day15", "day30", "day60", "day90"];
+  const dayValues = [1, 3, 7, 15, 30, 60, 90];
+  
+  // Filter days that are within the range
+  return allDays.filter((day, index) => dayValues[index] <= rangeDays);
+};
 
 const chartConfig = {
   retention: { label: "Active Users %", color: "var(--chart-1)" },
@@ -79,7 +108,16 @@ export function ChartLineRetention() {
   const [userTypes, setUserTypes] = React.useState<string[]>([]);
   const [selectedUserType, setSelectedUserType] = React.useState<string>("all");
   const [loading, setLoading] = React.useState(true);
-  const [timeRange, setTimeRange] = React.useState("90d"); // default to 90 days
+  const [timeRange, setTimeRange] = React.useState("lifetime"); // default to lifetime
+  const [startDate, setStartDate] = React.useState<string | null>(null);
+  const [endDate, setEndDate] = React.useState<string>(
+    new Date().toISOString().split("T")[0]
+  ); // default to today
+  const [showCustomRange, setShowCustomRange] = React.useState(false);
+  const [showRangeDialog, setShowRangeDialog] = React.useState(false);
+  const [rangeMode, setRangeMode] = React.useState<"predefined" | "custom">(
+    "predefined"
+  );
   // 🧩 Fetch user types
   React.useEffect(() => {
     const fetchUserTypes = async () => {
@@ -99,22 +137,28 @@ export function ChartLineRetention() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const res = await fetch(
-          `/api/retention?user_type=${selectedUserType}&range=${timeRange}`
-        );
+        
+        // Build query parameters
+        let url = `/api/retention?user_type=${selectedUserType}&range=${timeRange}`;
+        
+        // Add custom date range if provided
+        if (startDate && endDate) {
+          url += `&start_date=${startDate}&end_date=${endDate}`;
+        }
+        
+        const res = await fetch(url);
         const data: RetentionApiResponse = await res.json();
 
-        // Define which days to include for each range (must match route.ts dayMap)
-        const dayMap: Record<string, string[]> = {
-          "3d": ["day1", "day3"],
-          "7d": ["day1", "day3", "day7"],
-          "15d": ["day1", "day3", "day7", "day15"],
-          "30d": ["day1", "day3", "day7", "day15", "day30"],
-          "60d": ["day1", "day3", "day7", "day15", "day30", "day60"],
-          "90d": ["day1", "day3", "day7", "day15", "day30", "day60", "day90"],
-        };
-
-        const selectedDays = dayMap[timeRange] || dayMap["90d"];
+        // Determine which days to display
+        let selectedDays: string[];
+        
+        if (data.isCustomRange && data.customRangeDays) {
+          // For custom ranges, dynamically calculate eligible days
+          selectedDays = getEligibleDays(data.customRangeDays);
+        } else {
+          // For predefined ranges, use dayMap
+          selectedDays = dayMap[timeRange] || dayMap["lifetime"];
+        }
 
         // Dynamically build chart points based on selected days
         const points: ChartPoint[] = selectedDays.map((day) => {
@@ -137,7 +181,7 @@ export function ChartLineRetention() {
     };
 
     fetchData();
-  }, [selectedUserType, timeRange]);
+  }, [selectedUserType, timeRange, startDate, endDate]);
 
   return (
     <Card className="@container/card">
@@ -149,60 +193,62 @@ export function ChartLineRetention() {
               <TooltipTrigger asChild>
                 <Info className="size-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
               </TooltipTrigger>
-              <TooltipContent className="max-w-xs text-sm">
-                <p>
-                  <strong>How retention is calculated:</strong>
-                </p>
-                <ul className="list-disc ml-4 space-y-1">
-                  <li>
-                    <strong>Eligible Users:</strong> Users who created their
-                    account at least N days ago.
-                  </li>
-                  <li>
-                    <strong>Active Users:</strong> Users who were active on that
-                    day (had any progress recorded).
-                  </li>
-                  <li>
-                    <strong>Completed Exercises:</strong> Users who completed{" "}
-                    <em>all exercises</em> for that day.
-                  </li>
-                  <li>
-                    <strong>Active Users Retention %:</strong> (Active Users ÷
-                    Eligible Users) × 100.
-                  </li>
-                  <li>
-                    <strong>Completed Retention %:</strong> (Users with all
-                    exercises completed ÷ Eligible Users) × 100.
-                  </li>
-                  <li>
-                    <strong>Intervals:</strong> Calculated for day1, day3, day7,
-                    day15, day30, day60, and day90.
-                  </li>
-                </ul>
-              </TooltipContent>
+   <TooltipContent className="max-w-xs text-sm"> 
+  <p>
+    <strong>How retention is calculated:</strong>
+  </p>
+  <ul className="list-disc ml-4 space-y-1">
+    <li>
+      <strong>Eligible Users:</strong> Users who created their account at least N days ago. Only eligible users are counted for retention.
+    </li>
+    <li>
+      <strong>Active Users:</strong> Eligible users who had progress recorded on that specific day.
+    </li>
+    <li>
+      <strong>Completed Exercises:</strong> Eligible users who completed <em>all exercises</em> 
+      on that day.
+    </li>
+    <li>
+      <strong>Active Users Retention %:</strong> (Active Users ÷ Eligible Users) × 100.
+    </li>
+    <li>
+      <strong>Completed Retention %:</strong> (Users with all exercises completed ÷ Eligible Users) × 100.
+    </li>
+    <li>
+      <strong>Data Filtering by Mode:</strong>
+      <ul className="list-disc ml-4 space-y-1">
+        <li>
+          <strong>Lifetime Mode:</strong> All users are included regardless of creation date.User type filter can be applied.
+        </li>
+        <li>
+          <strong>Relative Range Mode (e.g., 7d, 30d):</strong> Only users created within the last N days 
+          are included. Users must be old enough to be eligible for each retention day (e.g., for day7, user must have joined at least 8 days ago).
+        </li>
+        <li>
+          <strong>Custom Date Range Mode:</strong> Users created between the selected start date and today are included. 
+          All user types are counted. Eligibility is calculated relative to the creation date within that range.
+        </li>
+      </ul>
+    </li>
+    <li>
+      <strong>Intervals:</strong> Retention is calculated for day1, day3, day7, day15, day30, day60, and day90 
+      based on the selected mode and time range.
+    </li>
+  </ul>
+</TooltipContent>
+
             </Tooltip>
           </TooltipProvider>
         </CardTitle>
 
         <CardDescription>
-          Percentage of users retained over time
+          {showCustomRange && startDate
+            ? `Retention from ${startDate} to today`
+            : `Percentage of users retained over time (${timeRange})`}
         </CardDescription>
 
         <CardAction className="flex items-center gap-2">
-          <ToggleGroup
-            type="single"
-            value={timeRange}
-            onValueChange={setTimeRange}
-            variant="outline"
-            className="hidden *:data-[slot=toggle-group-item]:!px-4 @[767px]/card:flex"
-          >
-            <ToggleGroupItem value="3d">Last 3 days</ToggleGroupItem>
-            <ToggleGroupItem value="7d">Last 7 days</ToggleGroupItem>
-            <ToggleGroupItem value="30d">Last month</ToggleGroupItem>
-            <ToggleGroupItem value="60d">Last 60 days</ToggleGroupItem>
-            <ToggleGroupItem value="90d">Overall</ToggleGroupItem>
-          </ToggleGroup>
-          <Select
+             <Select
             value={selectedUserType}
             onValueChange={(value) => setSelectedUserType(value)}
           >
@@ -217,7 +263,125 @@ export function ChartLineRetention() {
               ))}
             </SelectContent>
           </Select>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="p-2 hover:bg-accent rounded-md transition-colors">
+                <MoreVertical className="size-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setShowRangeDialog(true)}>
+                Select Time Range
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+       
         </CardAction>
+
+        {/* Range Selection Dialog */}
+        <Dialog open={showRangeDialog} onOpenChange={setShowRangeDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Select Time Range</DialogTitle>
+              <DialogDescription>
+                Choose a predefined range or set a custom date range
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Toggle between Predefined and Custom Ranges */}
+            <div className="flex gap-2 border rounded-md p-1 bg-muted">
+              <button
+                onClick={() => setRangeMode("predefined")}
+                className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  rangeMode === "predefined"
+                    ? "bg-background text-foreground shadow"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Predefined
+              </button>
+              <button
+                onClick={() => setRangeMode("custom")}
+                className={`flex-1 px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  rangeMode === "custom"
+                    ? "bg-background text-foreground shadow"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Custom
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* Predefined Ranges */}
+              {rangeMode === "predefined" && (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: "7d", label: "Last 7 days" },
+                      { value: "30d", label: "Last month" },
+                      { value: "60d", label: "Last 60 days" },
+                      { value: "90d", label: "Last 90 days" },
+                      { value: "lifetime", label: "Lifetime" },
+                    ].map((range) => (
+                      <button
+                        key={range.value}
+                        onClick={() => {
+                          setTimeRange(range.value);
+                          setStartDate(null);
+                          setShowCustomRange(false);
+                          setShowRangeDialog(false);
+                        }}
+                        className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          timeRange === range.value && !showCustomRange
+                            ? "bg-primary text-primary-foreground"
+                            : "border hover:bg-accent"
+                        }`}
+                      >
+                        {range.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Range Section */}
+              {rangeMode === "custom" && (
+                <div className="space-y-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium">Start Date</label>
+                    <input
+                      type="date"
+                      value={startDate || ""}
+                      onChange={(e) => {
+                        const value = e.target.value || null;
+                        setStartDate(value);
+                      }}
+                      className="px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  {/* End Date is hidden, always set to today */}
+                  
+                  {/* Confirm Button */}
+                  <button
+                    onClick={() => {
+                      if (startDate) {
+                        setShowCustomRange(true);
+                        setShowRangeDialog(false);
+                      }
+                    }}
+                    disabled={!startDate}
+                    className="w-full px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
 
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">

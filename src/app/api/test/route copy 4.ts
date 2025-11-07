@@ -4,24 +4,13 @@ import bigquery from "@/lib/bigquery";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const user_type = searchParams.get("user_type") || "all";
-  const range = searchParams.get("range") || "lifetime";
+  const range = searchParams.get("range") || "9999d";
 
-  // Detect if we are in lifetime or range mode
-  const isLifetime = range === "lifetime";
-  const rangeDays = !isLifetime ? parseInt(range.replace("d", "")) : null;
+  // Extract number of days from "7d", "30d", etc.
+  const rangeDays = parseInt(range.replace("d", "")) || 90;
 
   const userTypeCondition =
     user_type === "all" ? "" : `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`;
-
-  // ✅ Conditional filtering logic based on range type
-  const rangeFilter = isLifetime
-    ? "" // include all users (including missing created_at)
-    : `
-      AND DATE(SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)))
-          BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeDays} DAY)
-          AND CURRENT_DATE()
-      AND JSON_VALUE(data, '$.created_at._seconds') IS NOT NULL
-    `;
 
   const query = `
 WITH users AS (
@@ -29,16 +18,18 @@ WITH users AS (
     JSON_VALUE(data, '$.email') AS email,
     SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)) AS created_at,
     JSON_QUERY(data, '$.progress') AS progress
-  FROM
-    \`keshah-app.firestore_export.users_raw_latest\`
+  FROM \`keshah-app.firestore_export.users_raw_latest\`
   WHERE
     JSON_QUERY(data, '$.progress') IS NOT NULL
     ${userTypeCondition}
+    AND DATE(SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)))
+        BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL ${rangeDays} DAY)
+        AND CURRENT_DATE()
 ),
 
 retention AS (
   SELECT
-    -- Eligible users (created_at <= N days ago OR missing created_at)
+    -- Eligible users (created within selected range)
     COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)) AS eligible_day1,
     COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 4 DAY)) AS eligible_day3,
     COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY)) AS eligible_day7,
@@ -47,7 +38,7 @@ retention AS (
     COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 61 DAY)) AS eligible_day60,
     COUNTIF(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 91 DAY)) AS eligible_day90,
 
-    -- Active users (any progress)
+    -- Active users
     COUNTIF(JSON_QUERY(progress, '$.day1') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))) AS day1_active,
     COUNTIF(JSON_QUERY(progress, '$.day3') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 4 DAY))) AS day3_active,
     COUNTIF(JSON_QUERY(progress, '$.day7') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 8 DAY))) AS day7_active,
@@ -56,7 +47,7 @@ retention AS (
     COUNTIF(JSON_QUERY(progress, '$.day60') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 61 DAY))) AS day60_active,
     COUNTIF(JSON_QUERY(progress, '$.day90') IS NOT NULL AND (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 91 DAY))) AS day90_active,
 
-    -- Completed exercises retention
+    -- Completed exercises retention (for users in range)
     COUNTIF(
       (DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY))
       AND (
@@ -116,7 +107,6 @@ retention AS (
 )
 
 SELECT
-  -- Default retention
   ROUND(100 * (day1_active / NULLIF(eligible_day1, 0)), 2) AS day1_retention,
   eligible_day1 AS day1_users,
   ROUND(100 * (day3_active / NULLIF(eligible_day3, 0)), 2) AS day3_retention,
@@ -143,26 +133,7 @@ SELECT
 FROM retention;
 `;
 
-const test = `
-SELECT
-  COUNT(*) AS users_with_day1_and_missing_created_at
-  FROM \`keshah-app.firestore_export.users_raw_latest\`
-WHERE
 
-  JSON_QUERY(data, '$.progress.day1') IS NOT NULL;
-`;
-
-const test2 = `
-SELECT
-  COUNT(*) AS day7_users_count,
-FROM \`keshah-app.firestore_export.users_raw_latest\`
-WHERE JSON_VALUE(data, '$.created_at._seconds') IS NOT NULL
-  AND DATE(SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)))
-      BETWEEN DATE('2025-10-31') AND CURRENT_DATE()
-        AND JSON_QUERY(data, '$.progress') IS NOT NULL
-`;
-
-
-  const [rows] = await bigquery.query(test2);
+  const [rows] = await bigquery.query(query);
   return NextResponse.json(rows[0]);
 }
