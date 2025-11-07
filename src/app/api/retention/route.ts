@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const start = new Date(startDateParam);
     start.setDate(start.getDate() - 1);
     adjustedStartDate = start.toISOString().slice(0, 10);
+    console.log("Adjusted Start Date:", adjustedStartDate);
   }
 
   const endDate = new Date().toISOString().slice(0, 10);
@@ -45,11 +46,8 @@ export async function GET(request: Request) {
     `;
   }
 
-  // Eligibility checks only for lifetime mode
   const eligibilityDay = (days: number) =>
-    isLifetime
-      ? `(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`
-      : "1=1"; // automatically eligible in range modes
+    `(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
 
   const query = `
 WITH users AS (
@@ -75,13 +73,27 @@ retention AS (
     COUNTIF(${eligibilityDay(91)}) AS eligible_day90,
 
     -- Active users
-    COUNTIF(JSON_QUERY(progress, '$.day1') IS NOT NULL AND ${eligibilityDay(1)}) AS day1_active,
-    COUNTIF(JSON_QUERY(progress, '$.day3') IS NOT NULL AND ${eligibilityDay(4)}) AS day3_active,
-    COUNTIF(JSON_QUERY(progress, '$.day7') IS NOT NULL AND ${eligibilityDay(8)}) AS day7_active,
-    COUNTIF(JSON_QUERY(progress, '$.day15') IS NOT NULL AND ${eligibilityDay(16)}) AS day15_active,
-    COUNTIF(JSON_QUERY(progress, '$.day30') IS NOT NULL AND ${eligibilityDay(31)}) AS day30_active,
-    COUNTIF(JSON_QUERY(progress, '$.day60') IS NOT NULL AND ${eligibilityDay(61)}) AS day60_active,
-    COUNTIF(JSON_QUERY(progress, '$.day90') IS NOT NULL AND ${eligibilityDay(91)}) AS day90_active,
+    COUNTIF(JSON_QUERY(progress, '$.day1') IS NOT NULL AND ${eligibilityDay(
+      1
+    )}) AS day1_active,
+    COUNTIF(JSON_QUERY(progress, '$.day3') IS NOT NULL AND ${eligibilityDay(
+      4
+    )}) AS day3_active,
+    COUNTIF(JSON_QUERY(progress, '$.day7') IS NOT NULL AND ${eligibilityDay(
+      8
+    )}) AS day7_active,
+    COUNTIF(JSON_QUERY(progress, '$.day15') IS NOT NULL AND ${eligibilityDay(
+      16
+    )}) AS day15_active,
+    COUNTIF(JSON_QUERY(progress, '$.day30') IS NOT NULL AND ${eligibilityDay(
+      31
+    )}) AS day30_active,
+    COUNTIF(JSON_QUERY(progress, '$.day60') IS NOT NULL AND ${eligibilityDay(
+      61
+    )}) AS day60_active,
+    COUNTIF(JSON_QUERY(progress, '$.day90') IS NOT NULL AND ${eligibilityDay(
+      91
+    )}) AS day90_active,
 
     -- Completed exercises
     COUNTIF(

@@ -98,6 +98,18 @@ const getEligibleDays = (rangeDays: number): string[] => {
   return allDays.filter((day, index) => dayValues[index] <= rangeDays);
 };
 
+// Helper function to transform time range to human-readable format
+const getTimeRangeLabel = (range: string): string => {
+  const rangeLabels: Record<string, string> = {
+    "7d": "Last 7 days",
+    "30d": "Last 30 days",
+    "60d": "Last 60 days",
+    "90d": "Last 90 days",
+    "lifetime": "lifetime"
+  };
+  return rangeLabels[range] || range;
+};
+
 const chartConfig = {
   retention: { label: "Active Users %", color: "var(--chart-1)" },
   completedRetention: { label: "Completed Exercises %", color: "#808080" }, // changed to gray
@@ -222,18 +234,15 @@ export function ChartLineRetention() {
         </li>
         <li>
           <strong>Relative Range Mode (e.g., 7d, 30d):</strong> Only users created within the last N days 
-          are included. Users must be old enough to be eligible for each retention day (e.g., for day7, user must have joined at least 8 days ago).
+          are included. Users must be old enough to be eligible for each retention day.
         </li>
         <li>
           <strong>Custom Date Range Mode:</strong> Users created between the selected start date and today are included. 
-          All user types are counted. Eligibility is calculated relative to the creation date within that range.
+          All user types are counted.
         </li>
       </ul>
     </li>
-    <li>
-      <strong>Intervals:</strong> Retention is calculated for day1, day3, day7, day15, day30, day60, and day90 
-      based on the selected mode and time range.
-    </li>
+
   </ul>
 </TooltipContent>
 
@@ -244,7 +253,7 @@ export function ChartLineRetention() {
         <CardDescription>
           {showCustomRange && startDate
             ? `Retention from ${startDate} to today`
-            : `Percentage of users retained over time (${timeRange})`}
+            : `Percentage of users retained over ${getTimeRangeLabel(timeRange)}`}
         </CardDescription>
 
         <CardAction className="flex items-center gap-2">
@@ -266,8 +275,15 @@ export function ChartLineRetention() {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="p-2 hover:bg-accent rounded-md transition-colors">
+              <button className={`relative p-2 rounded-md transition-colors ${
+                timeRange !== "lifetime" || showCustomRange
+                  ? "bg-primary/20 hover:bg-primary/30"
+                  : "hover:bg-accent"
+              }`}>
                 <MoreVertical className="size-4" />
+                {(timeRange !== "lifetime" || showCustomRange) && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+                )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
@@ -351,7 +367,7 @@ export function ChartLineRetention() {
               {rangeMode === "custom" && (
                 <div className="space-y-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">Start Date</label>
+                    <label className="text-sm font-medium">Starting From:</label>
                     <input
                       type="date"
                       value={startDate || ""}
