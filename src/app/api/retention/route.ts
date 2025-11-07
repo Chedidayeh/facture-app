@@ -5,6 +5,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const user_type = searchParams.get("user_type") || "all";
   const range = searchParams.get("range") || "lifetime";
+  // const range = "7d";
 
   const startDateParam = searchParams.get("start_date");
   let adjustedStartDate: string | null = null;
@@ -60,6 +61,8 @@ WITH users AS (
     ${userTypeCondition}
     ${rangeFilter}
 ),
+
+
 
 retention AS (
   SELECT
@@ -138,6 +141,18 @@ retention AS (
        FROM UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day90')) AS ex)
     ) AS day90_completed_active
   FROM users
+),
+
+day1_per_exercise AS (
+  SELECT
+    exercise_offset + 1 AS exercise_index,
+    COUNTIF(${eligibilityDay(1)} AND JSON_VALUE(ex, '$.is_completed') = 'true') AS users_completed_exercise,
+    COUNTIF(${eligibilityDay(1)}) AS eligible_users_with_exercise
+  FROM users,
+  UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day1')) AS ex WITH OFFSET AS exercise_offset
+  WHERE JSON_QUERY(progress, '$.day1') IS NOT NULL
+    AND exercise_offset < 4
+  GROUP BY exercise_offset
 )
 
 SELECT
@@ -162,7 +177,21 @@ SELECT
   ROUND(100 * (day15_completed_active / NULLIF(eligible_day15, 0)), 2) AS day15_completed_retention,
   ROUND(100 * (day30_completed_active / NULLIF(eligible_day30, 0)), 2) AS day30_completed_retention,
   ROUND(100 * (day60_completed_active / NULLIF(eligible_day60, 0)), 2) AS day60_completed_retention,
-  ROUND(100 * (day90_completed_active / NULLIF(eligible_day90, 0)), 2) AS day90_completed_retention
+  ROUND(100 * (day90_completed_active / NULLIF(eligible_day90, 0)), 2) AS day90_completed_retention,
+  
+  -- Day 1 per-exercise completion breakdown
+  (
+    SELECT ARRAY_AGG(
+      STRUCT(
+        exercise_index,
+        users_completed_exercise,
+        eligible_users_with_exercise,
+        ROUND(100 * (users_completed_exercise / NULLIF(eligible_users_with_exercise, 0)), 2) AS exercise_completion_percentage
+      )
+      ORDER BY exercise_index
+    )
+    FROM day1_per_exercise
+  ) AS day1_exercise_completion
 FROM retention;
 `;
 

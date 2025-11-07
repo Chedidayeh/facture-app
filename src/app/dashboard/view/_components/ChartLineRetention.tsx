@@ -44,6 +44,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker";
 
 type RetentionApiResponse = {
   day1_retention: number;
@@ -67,6 +68,12 @@ type RetentionApiResponse = {
   day90_retention: number;
   day90_completed_retention: number;
   day90_users: number;
+  day1_exercise_completion?: Array<{
+    exercise_index: number;
+    users_completed_exercise: number;
+    eligible_users_with_exercise: number;
+    exercise_completion_percentage: number;
+  }>;
   customRangeDays?: number;
   isCustomRange?: boolean;
 };
@@ -76,6 +83,7 @@ type ChartPoint = {
   retention: number;
   completedRetention: number;
   users: number;
+  exerciseBreakdown?: RetentionApiResponse["day1_exercise_completion"];
 };
 
 // Define which days to include for each range (must match route.ts logic)
@@ -93,7 +101,7 @@ const dayMap: Record<string, string[]> = {
 const getEligibleDays = (rangeDays: number): string[] => {
   const allDays = ["day1", "day3", "day7", "day15", "day30", "day60", "day90"];
   const dayValues = [1, 3, 7, 15, 30, 60, 90];
-  
+
   // Filter days that are within the range
   return allDays.filter((day, index) => dayValues[index] <= rangeDays);
 };
@@ -105,7 +113,7 @@ const getTimeRangeLabel = (range: string): string => {
     "30d": "Last 30 days",
     "60d": "Last 60 days",
     "90d": "Last 90 days",
-    "lifetime": "lifetime"
+    lifetime: "lifetime",
   };
   return rangeLabels[range] || range;
 };
@@ -144,35 +152,29 @@ export function ChartLineRetention() {
     fetchUserTypes();
   }, []);
 
-  // 📊 Fetch retention data based on selected user type and time range
+  // 📊 Fetch retention data
   React.useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
-        // Build query parameters
+
         let url = `/api/retention?user_type=${selectedUserType}&range=${timeRange}`;
-        
-        // Add custom date range if provided
+
         if (startDate && endDate) {
           url += `&start_date=${startDate}&end_date=${endDate}`;
         }
-        
+
         const res = await fetch(url);
         const data: RetentionApiResponse = await res.json();
 
-        // Determine which days to display
         let selectedDays: string[];
-        
+
         if (data.isCustomRange && data.customRangeDays) {
-          // For custom ranges, dynamically calculate eligible days
           selectedDays = getEligibleDays(data.customRangeDays);
         } else {
-          // For predefined ranges, use dayMap
           selectedDays = dayMap[timeRange] || dayMap["lifetime"];
         }
 
-        // Dynamically build chart points based on selected days
         const points: ChartPoint[] = selectedDays.map((day) => {
           const dayNum = day.replace("day", "");
           return {
@@ -181,6 +183,9 @@ export function ChartLineRetention() {
             completedRetention:
               (data as any)[`${day}_completed_retention`] || 0,
             users: (data as any)[`${day}_users`] || 0,
+            // Add exercise breakdown only for day1
+            exerciseBreakdown:
+              day === "day1" ? data.day1_exercise_completion : undefined,
           };
         });
 
@@ -205,47 +210,63 @@ export function ChartLineRetention() {
               <TooltipTrigger asChild>
                 <Info className="size-4 text-muted-foreground cursor-help hover:text-foreground transition-colors" />
               </TooltipTrigger>
-   <TooltipContent className="max-w-xs text-sm"> 
-  <p>
-    <strong>How retention is calculated:</strong>
-  </p>
-  <ul className="list-disc ml-4 space-y-1">
-    <li>
-      <strong>Eligible Users:</strong> Users who created their account at least N days ago. Only eligible users are counted for retention.
-    </li>
-    <li>
-      <strong>Active Users:</strong> Eligible users who had progress recorded on that specific day.
-    </li>
-    <li>
-      <strong>Completed Exercises:</strong> Eligible users who completed <em>all exercises</em> 
-      on that day.
-    </li>
-    <li>
-      <strong>Active Users Retention %:</strong> (Active Users ÷ Eligible Users) × 100.
-    </li>
-    <li>
-      <strong>Completed Retention %:</strong> (Users with all exercises completed ÷ Eligible Users) × 100.
-    </li>
-    <li>
-      <strong>Data Filtering by Mode:</strong>
-      <ul className="list-disc ml-4 space-y-1">
-        <li>
-          <strong>Lifetime Mode:</strong> All users are included regardless of creation date.User type filter can be applied.
-        </li>
-        <li>
-          <strong>Relative Range Mode (e.g., 7d, 30d):</strong> Only users created within the last N days 
-          are included. Users must be old enough to be eligible for each retention day.
-        </li>
-        <li>
-          <strong>Custom Date Range Mode:</strong> Users created between the selected start date and today are included. 
-          All user types are counted.
-        </li>
-      </ul>
-    </li>
-
-  </ul>
-</TooltipContent>
-
+              <TooltipContent className="max-w-xs text-sm">
+                <p>
+                  <strong>How retention is calculated:</strong>
+                </p>
+                <ul className="list-disc ml-4 space-y-1">
+                  <li>
+                    <strong>Eligible Users:</strong> Users who created their
+                    account at least N days ago. Only eligible users are counted
+                    for retention.
+                  </li>
+                  <li>
+                    <strong>Active Users:</strong> Eligible users who had
+                    progress recorded on that specific day.
+                  </li>
+                  <li>
+                    <strong>Completed Exercises:</strong> Eligible users who
+                    completed <em>all exercises</em>
+                    on that day.
+                  </li>
+                  <li>
+                    <strong>Active Users Retention %:</strong> (Active Users ÷
+                    Eligible Users) × 100.
+                  </li>
+                  <li>
+                    <strong>Completed Retention %:</strong> (Users with all
+                    exercises completed ÷ Eligible Users) × 100.
+                  </li>
+                  <li>
+                    <strong>Data Filtering by Mode:</strong>
+                    <ul className="list-disc ml-4 space-y-1">
+                      <li>
+                        <strong>Lifetime Mode:</strong> All users are included
+                        regardless of creation date.{" "}
+                        <span className="text-red-500">
+                          User type filter is considered in this mode.
+                        </span>
+                      </li>
+                      <li>
+                        <strong>Relative Range Mode (e.g., 7d, 30d):</strong>{" "}
+                        Only users created within the last N days are included.
+                        Users must be old enough to be eligible for each
+                        retention day.{" "}
+                        <span className="text-red-500">
+                          User type filter is ignored.
+                        </span>
+                      </li>
+                      <li>
+                        <strong>Custom Date Range Mode:</strong> Users created
+                        between the selected start date and today are included.{" "}
+                        <span className="text-red-500">
+                          User type filter is ignored.
+                        </span>
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </CardTitle>
@@ -253,11 +274,13 @@ export function ChartLineRetention() {
         <CardDescription>
           {showCustomRange && startDate
             ? `Retention from ${startDate} to today`
-            : `Percentage of users retained over ${getTimeRangeLabel(timeRange)}`}
+            : `Percentage of users retained over ${getTimeRangeLabel(
+                timeRange
+              )}`}
         </CardDescription>
 
         <CardAction className="flex items-center gap-2">
-             <Select
+          <Select
             value={selectedUserType}
             onValueChange={(value) => setSelectedUserType(value)}
           >
@@ -272,14 +295,16 @@ export function ChartLineRetention() {
               ))}
             </SelectContent>
           </Select>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={`relative p-2 rounded-md transition-colors ${
-                timeRange !== "lifetime" || showCustomRange
-                  ? "bg-primary/20 hover:bg-primary/30"
-                  : "hover:bg-accent"
-              }`}>
+              <button
+                className={`relative p-2 rounded-md transition-colors ${
+                  timeRange !== "lifetime" || showCustomRange
+                    ? "bg-primary/20 hover:bg-primary/30"
+                    : "hover:bg-accent"
+                }`}
+              >
                 <MoreVertical className="size-4" />
                 {(timeRange !== "lifetime" || showCustomRange) && (
                   <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
@@ -292,8 +317,6 @@ export function ChartLineRetention() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          
-       
         </CardAction>
 
         {/* Range Selection Dialog */}
@@ -329,7 +352,7 @@ export function ChartLineRetention() {
                 Custom
               </button>
             </div>
-            
+
             <div className="space-y-6">
               {/* Predefined Ranges */}
               {rangeMode === "predefined" && (
@@ -366,20 +389,18 @@ export function ChartLineRetention() {
               {/* Custom Range Section */}
               {rangeMode === "custom" && (
                 <div className="space-y-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-sm font-medium">Starting From:</label>
-                    <input
-                      type="date"
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm font-medium">
+                      Starting From:
+                    </label>
+                    <DatePicker
                       value={startDate || ""}
-                      onChange={(e) => {
-                        const value = e.target.value || null;
-                        setStartDate(value);
-                      }}
-                      className="px-3 py-2 border rounded-md text-sm"
+                      onValueChange={(value) => setStartDate(value)}
+                      placeholder="Pick a start date"
                     />
                   </div>
                   {/* End Date is hidden, always set to today */}
-                  
+
                   {/* Confirm Button */}
                   <button
                     onClick={() => {
@@ -448,12 +469,102 @@ export function ChartLineRetention() {
                   content={({ active, payload }) => {
                     if (active && payload && payload.length > 0) {
                       const data = payload[0].payload as ChartPoint;
+                      const isDay1 = data.day === "Day 1";
+
                       return (
-                        <div className="border bg-white dark:bg-black rounded p-2 shadow">
-                          <div className="font-medium">{data.day}</div>
-                          <div>Active Users: {data.retention}%</div>
-                          <div>Completed: {data.completedRetention}%</div>
-                          <div>Users: {data.users}</div>
+                        <div className="border z-50 bg-white dark:bg-accent rounded-lg p-3 shadow-lg max-w-sm">
+                          {/* Header */}
+                          <div className="font-semibold text-xs mb-2">
+                            {data.day}
+                          </div>
+
+                          {/* Main metrics */}
+                          <div className="space-y-1 mb-3 text-xs">
+                            <div className="flex justify-between gap-1">
+                              <span className="text-muted-foreground">
+                                Active Users:
+                              </span>
+                              <span className="font-medium">
+                                {data.retention}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-1">
+                              <span className="text-muted-foreground">
+                                Completed:
+                              </span>
+                              <span className="font-medium">
+                                {data.completedRetention}%
+                              </span>
+                            </div>
+                            <div className="flex justify-between gap-1">
+                              <span className="text-muted-foreground">
+                                Eligible Users:
+                              </span>
+                              <span className="font-medium">{data.users}</span>
+                            </div>
+                          </div>
+
+                          {/* Day 1 Exercise Breakdown */}
+                          {isDay1 && data.exerciseBreakdown && (
+                            <>
+                              <div className="border-t pt-2 mt-2">
+                                {/* Progress bars for each exercise */}
+                                <div className="space-y-2">
+                                  {data.exerciseBreakdown.map((exercise) => (
+                                    <div key={exercise.exercise_index}>
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className="text-xs font-medium">
+                                          Exercise{" "}
+                                          {exercise.exercise_index}
+                                        </span>
+                                        <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                                          {exercise.exercise_completion_percentage}%
+                                        </span>
+                                      </div>
+
+                                      {/* Progress bar */}
+                                      <div className="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                        <div
+                                          className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all"
+                                          style={{
+                                            width: `${exercise.exercise_completion_percentage}%`,
+                                          }}
+                                        />
+                                      </div>
+
+                                      {/* Count info */}
+                                      <div className="text-xs text-muted-foreground mt-0.5">
+                                        {exercise.users_completed_exercise} /{" "}
+                                        {
+                                          exercise.eligible_users_with_exercise
+                                        }{" "}
+                                        users
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                {/* Drop-off insight */}
+                                {data.exerciseBreakdown.length > 1 && (
+                                  <div className="mt-2 pt-2 border-t text-xs text-muted-foreground">
+                                    <div className="font-semibold text-orange-600 dark:text-orange-400">
+                                      📊 Drop-off:
+                                    </div>
+                                    <div>
+                                      {(
+                                        data.exerciseBreakdown[0]
+                                          .exercise_completion_percentage -
+                                        data.exerciseBreakdown[
+                                          data.exerciseBreakdown.length - 1
+                                        ].exercise_completion_percentage
+                                      ).toFixed(1)}
+                                      % from first to last
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     }
@@ -471,7 +582,7 @@ export function ChartLineRetention() {
                     activeDot={{ r: 6 }}
                     strokeDasharray={
                       key === "completedRetention" ? "5 5" : undefined
-                    } // dashed for completedRetention
+                    }
                   />
                 ))}
               </LineChart>
