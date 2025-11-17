@@ -26,28 +26,10 @@ export async function GET(request: Request) {
       ? parseInt(range.replace("d", "")) + 1
       : null;
 
-  const userTypeConditionnn =
+  const userTypeCondition =
     isLifetime && user_type !== "all"
       ? `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`
       : "";
-
-  const userTypeConditionn =
-    user_type !== "all"
-      ? `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`
-      : "";
-
-  let userTypeCondition = "";
-
-  if (user_type === "all") {
-    userTypeCondition = "";
-  } else if (user_type === "eligible_true") {
-    userTypeCondition = `AND JSON_VALUE(data, '$.eligible_for_special_regrowth_features') = 'true' AND JSON_VALUE(data, '$.user_type') = 'freev2'`;
-  } else if (user_type === "eligible_false") {
-    userTypeCondition = `AND JSON_VALUE(data, '$.eligible_for_special_regrowth_features') = 'false' AND JSON_VALUE(data, '$.user_type') = 'freev2'`;
-  } else {
-    // existing types like 'free', 'vip'
-    userTypeCondition = `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`;
-  }
 
   // Range filtering
   let rangeFilter = "";
@@ -67,10 +49,6 @@ export async function GET(request: Request) {
 
   const eligibilityDay = (days: number) =>
     `(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY))`;
-
-  // const eligibilityDay = (dayNumber: number) =>
-  //   `(DATE(created_at) IS NULL OR DATE(created_at) <= DATE_SUB(CURRENT_DATE(), INTERVAL ${dayNumber} DAY))
-  //    AND JSON_QUERY(progress, '$.day${dayNumber > 1 ? dayNumber - 1 : dayNumber}') IS NOT NULL`;
 
   const query = `
 WITH users AS (
@@ -168,14 +146,11 @@ retention AS (
 day1_per_exercise AS (
   SELECT
     exercise_offset + 1 AS exercise_index,
-    COUNTIF(${eligibilityDay(
-      1
-    )} AND JSON_VALUE(ex, '$.is_completed') = 'true') AS users_completed_exercise,
+    COUNTIF(${eligibilityDay(1)} AND JSON_VALUE(ex, '$.is_completed') = 'true') AS users_completed_exercise,
     COUNTIF(${eligibilityDay(1)}) AS eligible_users_with_exercise
   FROM users,
   UNNEST(JSON_EXTRACT_ARRAY(progress, '$.day1')) AS ex WITH OFFSET AS exercise_offset
   WHERE JSON_QUERY(progress, '$.day1') IS NOT NULL
-    AND exercise_offset < 4
   GROUP BY exercise_offset
 )
 

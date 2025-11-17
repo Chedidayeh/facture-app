@@ -123,9 +123,18 @@ const chartConfig = {
   completedRetention: { label: "Completed Exercises %", color: "#808080" }, // changed to gray
 } satisfies ChartConfig;
 
+// Added constants & labels for new eligible types
+const PRESET_USER_TYPES = ["all", "eligible_true", "eligible_false"];
+const USER_TYPE_LABELS: Record<string, string> = {
+  all: "All Users",
+  eligible_true: "freev2 (eligible)",
+  eligible_false: "freev2 (not eligible)",
+  // api-provided concrete types (free, vip, ...) will fall back to their raw names
+};
+
 export function ChartLineRetention() {
   const [chartData, setChartData] = React.useState<ChartPoint[]>([]);
-  const [userTypes, setUserTypes] = React.useState<string[]>([]);
+  const [userTypes, setUserTypes] = React.useState<string[]>(PRESET_USER_TYPES);
   const [selectedUserType, setSelectedUserType] = React.useState<string>("all");
   const [loading, setLoading] = React.useState(true);
   const [timeRange, setTimeRange] = React.useState("lifetime"); // default to lifetime
@@ -138,15 +147,22 @@ export function ChartLineRetention() {
   const [rangeMode, setRangeMode] = React.useState<"predefined" | "custom">(
     "predefined"
   );
-  // 🧩 Fetch user types
+
+  // 🧩 Fetch user types (preserve preset eligible types + de-duplicate API results)
   React.useEffect(() => {
     const fetchUserTypes = async () => {
       try {
         const res = await fetch("/api/user-types");
         const data = await res.json();
-        setUserTypes(["all", ...data.map((item: any) => item.user_type)]);
+        const apiTypes = Array.isArray(data)
+          ? data.map((item: any) => item.user_type).filter(Boolean)
+          : [];
+        const combined = Array.from(new Set([...PRESET_USER_TYPES, ...apiTypes]));
+        setUserTypes(combined);
       } catch (err) {
         console.error("Failed to fetch user types:", err);
+        // keep presets if API fails
+        setUserTypes(PRESET_USER_TYPES);
       }
     };
     fetchUserTypes();
@@ -238,30 +254,31 @@ export function ChartLineRetention() {
                     exercises completed ÷ Eligible Users) × 100.
                   </li>
                   <li>
+                    <strong>Day 1 Exercise Breakdown:</strong> Shows completion
+                    percentage for each of the 4 exercises.
+                    <ul className="list-disc ml-4 space-y-1 mt-1">
+                      <li>
+                        Each exercise percentage = (Users completed exercise ÷
+                        Eligible users with that exercise) × 100
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
                     <strong>Data Filtering by Mode:</strong>
                     <ul className="list-disc ml-4 space-y-1">
                       <li>
                         <strong>Lifetime Mode:</strong> All users are included
                         regardless of creation date.{" "}
-                        <span className="text-red-500">
-                          User type filter is considered in this mode.
-                        </span>
                       </li>
                       <li>
                         <strong>Relative Range Mode (e.g., 7d, 30d):</strong>{" "}
                         Only users created within the last N days are included.
                         Users must be old enough to be eligible for each
                         retention day.{" "}
-                        <span className="text-red-500">
-                          User type filter is ignored.
-                        </span>
                       </li>
                       <li>
                         <strong>Custom Date Range Mode:</strong> Users created
                         between the selected start date and today are included.{" "}
-                        <span className="text-red-500">
-                          User type filter is ignored.
-                        </span>
                       </li>
                     </ul>
                   </li>
@@ -290,7 +307,7 @@ export function ChartLineRetention() {
             <SelectContent className="rounded-xl">
               {userTypes.map((type) => (
                 <SelectItem key={type} value={type}>
-                  {type === "all" ? "All Users" : type}
+                  {USER_TYPE_LABELS[type] || type}
                 </SelectItem>
               ))}
             </SelectContent>
