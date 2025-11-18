@@ -1,39 +1,52 @@
-// app/api/purchase-funnels/route.ts
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery"; // your BigQuery client
 
 export async function GET() {
-    try {
+  try {
+    const purchaseFunnelQuery = `
+-- Step 1: Extract needed JSON fields once per row
+WITH extracted AS (
+  SELECT
+    JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_reduction') AS reported_reduction,
+    JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_success') AS reported_success,
+    JSON_EXTRACT_SCALAR(data, '$.regrowth_treatment_purchased') AS treatment_purchased
+  FROM \`keshah-app.firestore_export.users_raw_latest\`
+  WHERE JSON_EXTRACT(data, '$.regrowth_reported_reduction') IS NOT NULL
+     OR JSON_EXTRACT(data, '$.regrowth_reported_success') IS NOT NULL
+     OR JSON_EXTRACT(data, '$.regrowth_treatment_purchased') IS NOT NULL
+)
 
+-- Step 2: Aggregate counts
+SELECT
+  COUNT(*) AS total_users,
+  
+  -- Users who reported reduction
+  COUNTIF(reported_reduction = 'true') AS reported_reduction,
+  
+  -- Users who reported reduction AND purchased
+  COUNTIF(reported_reduction = 'true' AND treatment_purchased = 'true') AS purchased_reduction,
+  
+  -- Users who reported success
+  COUNTIF(reported_success = 'true') AS reported_success,
+  
+  -- Users who reported success AND purchased
+  COUNTIF(reported_success = 'true' AND treatment_purchased = 'true') AS purchased_success,
+  
+  -- Users who purchased treatment
+  COUNTIF(treatment_purchased = 'true') AS total_purchased
+FROM extracted;
+`;
 
-    // --- Regrowth Treatment Query ---
-    const regrowthTreatmentQuery = `
-      SELECT
-        COUNT(*) AS total_users,
-        COUNT(IF(JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_reduction') = 'true', 1, NULL)) AS reported_reduction,
-        COUNT(IF(JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_reduction') = 'true' 
-                 AND JSON_EXTRACT_SCALAR(data, '$.regrowth_treatment_purchased') = 'true', 1, NULL)) AS purchased_reduction,
-        COUNT(IF(JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_success') = 'true', 1, NULL)) AS reported_success,
-        COUNT(IF(JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_success') = 'true' 
-                 AND JSON_EXTRACT_SCALAR(data, '$.regrowth_treatment_purchased') = 'true', 1, NULL)) AS purchased_success,
-        COUNT(IF(JSON_EXTRACT_SCALAR(data, '$.regrowth_treatment_purchased') = 'true', 1, NULL)) AS total_purchased
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
-      WHERE JSON_EXTRACT(data, '$.regrowth_treatment_purchased') IS NOT NULL
-         OR JSON_EXTRACT(data, '$.regrowth_reported_reduction') IS NOT NULL
-         OR JSON_EXTRACT(data, '$.regrowth_reported_success') IS NOT NULL;
-    `;
+    // Run the query
+    const [rows] = await bigquery.query({ query: purchaseFunnelQuery });
 
-    // Run both queries
-    const [regrowthResult] = await bigquery.query({ query: regrowthTreatmentQuery });
-    console.log("regrowthResult",regrowthResult[0])
-    // Format data for frontend
-    const data = {
-      regrowthTreatment: regrowthResult[0],
-    };
-
-    return NextResponse.json(data);
+    // Return response
+    return NextResponse.json({ purchaseFunnel: rows[0] });
   } catch (error) {
     console.error("Error fetching purchase funnel data:", error);
-    return NextResponse.json({ error: "Failed to fetch funnel data" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch funnel data" },
+      { status: 500 }
+    );
   }
 }
