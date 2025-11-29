@@ -1,6 +1,5 @@
 import { db } from "@/db";
 import { query, query2 } from "@/lib/query";
-import { BigQuery } from "@google-cloud/bigquery";
 import { invalidateCache } from "@/lib/cache-utils";
 import bigquery from "@/lib/bigquery";
 
