@@ -4,7 +4,7 @@ import { BigQuery } from "@google-cloud/bigquery";
 import { invalidateCache } from "@/lib/cache-utils";
 
 const SYNC_NAME = "users_latest_sync";
-const COOLDOWN_MINUTES = 5;
+const COOLDOWN_MINUTES = 1;
 
 const bigquery = new BigQuery({
   projectId: process.env.GCP_PROJECT_ID_MOETEZ || "test-bigquery-3dc1a",

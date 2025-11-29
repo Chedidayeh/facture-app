@@ -6,7 +6,7 @@
 import { db } from "@/db";
 
 // Match the sync cooldown time
-const CACHE_DURATION_MINUTES = 5;
+const CACHE_DURATION_MINUTES = 1;
 
 interface CacheOptions {
   statsKey: string;

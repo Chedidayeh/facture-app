@@ -5,7 +5,6 @@ import { Inter } from "next/font/google";
 
 import { Toaster } from "@/components/ui/sonner";
 import { SyncTrigger } from "@/components/sync-trigger";
-import { SyncProvider } from "@/contexts/sync-context";
 import { getPreference } from "@/server/server-actions";
 import { PreferencesStoreProvider } from "@/stores/preferences/preferences-provider";
 import { THEME_MODE_VALUES, THEME_PRESET_VALUES, type ThemePreset, type ThemeMode } from "@/types/preferences/theme";
@@ -30,14 +29,12 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       suppressHydrationWarning
     >
       <body className={`${inter.className} min-h-screen antialiased`}>
-        <SyncProvider>
           <SyncTrigger />
           <PreferencesStoreProvider themeMode={themeMode} themePreset={themePreset}>
             <Analytics/>
             {children}
             <Toaster />
           </PreferencesStoreProvider>
-        </SyncProvider>
       </body>
     </html>
   );

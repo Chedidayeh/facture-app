@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { useSyncContext } from '@/contexts/sync-context';
 
 export function LastUpdated() {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { isSyncing, refreshKey } = useSyncContext();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchLastSync() {
@@ -21,6 +20,13 @@ export function LastUpdated() {
           });
           setLastUpdate(formattedTime);
         }
+        
+        // Set error message if sync failed
+        if (data.status === 'failed' && data.errorMessage) {
+          setErrorMessage(data.errorMessage);
+        } else {
+          setErrorMessage(null);
+        }
       } catch (error) {
         console.error('Failed to fetch sync status:', error);
       } finally {
@@ -29,19 +35,34 @@ export function LastUpdated() {
     }
 
     fetchLastSync();
+    
+    // Listen for sync completion event
+    const handleSyncCompleted = () => {
+      console.log('🔄 Sync completed, refreshing last update time...');
+      fetchLastSync();
+    };
+    
+    window.addEventListener('syncCompleted', handleSyncCompleted);
+    
     // Optionally refresh every 30 seconds
     const interval = setInterval(fetchLastSync, 30000);
 
-    return () => clearInterval(interval);
-  }, [refreshKey]);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('syncCompleted', handleSyncCompleted);
+    };
+  }, []);
 
-  if (isLoading || isSyncing) {
-    return <div className="text-xs text-muted-foreground">Syncing...</div>;
+  if (isLoading) {
+    return <div className="text-xs text-muted-foreground">Loading...</div>;
   }
 
   return (
     <div className="text-xs text-muted-foreground">
       {lastUpdate ? `Last updated ${lastUpdate}` : 'Never synced'}
+      {errorMessage && (
+        <span className="ml-2 text-destructive">• Error: {errorMessage}</span>
+      )}
     </div>
   );
 }

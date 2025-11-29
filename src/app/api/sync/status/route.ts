@@ -13,6 +13,7 @@ export async function GET() {
       return NextResponse.json({
         lastExecutionTime: null,
         status: 'never_run',
+        errorMessage: null,
       });
     }
 
@@ -20,6 +21,7 @@ export async function GET() {
       lastExecutionTime: syncLog.lastExecutionTime,
       status: syncLog.status,
       recordsProcessed: syncLog.recordsProcessed,
+      errorMessage: syncLog.errorMessage,
     });
   } catch (error) {
     console.error('Error fetching sync status:', error);
