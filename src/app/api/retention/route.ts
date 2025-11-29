@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET(request: Request) {
   try {
@@ -9,6 +10,13 @@ export async function GET(request: Request) {
     const user_type = searchParams.get("user_type") || "all";
     const range = searchParams.get("range") || "lifetime";
     const startDateParam = searchParams.get("start_date");
+
+    // Create unique cache key based on parameters
+    const cacheKey = `retention_${user_type}_${range}_${startDateParam || "none"}`;
+
+    const data = await withCache(
+      cacheKey,
+      async () => {
 
     // Determine date range
     let adjustedStartDate: string | null = null;
@@ -173,21 +181,25 @@ SELECT
 FROM retention;
 `;
 
-    let customRangeDays = null;
-    if (useCustomRange && adjustedStartDate) {
-      const start = new Date(adjustedStartDate);
-      const end = new Date(endDate);
-      customRangeDays =
-        Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    }
+        let customRangeDays = null;
+        if (useCustomRange && adjustedStartDate) {
+          const start = new Date(adjustedStartDate);
+          const end = new Date(endDate);
+          customRangeDays =
+            Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        }
 
-    const [rows] = await bigquery.query(query);
+        const [rows] = await bigquery.query(query);
 
-    return NextResponse.json({
-      ...rows[0],
-      customRangeDays,
-      isCustomRange: useCustomRange,
-    });
+        return {
+          ...rows[0],
+          customRangeDays,
+          isCustomRange: useCustomRange,
+        };
+      }
+    );
+
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error("BigQuery error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

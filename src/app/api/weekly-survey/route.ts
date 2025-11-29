@@ -2,9 +2,13 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET() {
   try {
+    const rows = await withCache(
+      "weekly_survey",
+      async () => {
     
     const query = `
       WITH parsed AS (
@@ -28,7 +32,7 @@ export async function GET() {
           JSON_VALUE(data, '$.questions.4') AS q5_text,
           JSON_VALUE(data, '$.questions.5') AS q6_text,
           JSON_VALUE(data, '$.questions.6') AS q7_text
-        FROM \`${projectId}.firestore_export.pchecka_raw_latest\`
+        FROM \`${projectId}.analytics.pchecka_latest\`
       ),
       weekly_totals AS (
         SELECT week, COUNT(*) AS total_users
@@ -94,7 +98,11 @@ export async function GET() {
       ORDER BY p.week;
     `;
 
-    const [rows] = await bigquery.query({ query });
+        const [rows] = await bigquery.query({ query });
+        return rows;
+      }
+    );
+
     return NextResponse.json(rows);
   } catch (error) {
     console.error("Error fetching weekly survey:", error);

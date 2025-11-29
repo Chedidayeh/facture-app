@@ -10,7 +10,7 @@ export default function Page() {
       <SectionCards />
       <ChartLineUsers />
       <ChartLineRetention />
-      {/* <WeeklySurveyChart/> */}
+      <WeeklySurveyChart/>
       {/* <ScalpHealthPuchases/> */}
       {/* <ScalpHealthPuchasesChartLine/> */}
     </div>

@@ -2,9 +2,28 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET() {
   try {
+    const data = await withCache(
+      "user_stats",
+      async () => {
+        return await fetchUserStats();
+      }
+    );
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error("BigQuery error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+async function fetchUserStats() {
     
     // -----------------------------
     // 1️⃣ Users who started today
@@ -117,23 +136,16 @@ export async function GET() {
     // -----------------------------
     // Prepare response
     // -----------------------------
-    return NextResponse.json({
-      success: true,
-      data: {
-        todayUsers: Number(usersTodayResult[0]?.users_started_today ?? 0),
-        totalUsers: Number(totalUsersResult[0]?.total_users ?? 0),
-        freev2StartedUsers: Number(freev2StartedUsersResult[0]?.total_users ?? 0),
-        last7DaysUsers: Number(usersLast7DaysResult[0]?.users_started_last_7_days ?? 0),
-        activeUsers: Number(activeUsersResult[0]?.active_users_last_7_days ?? 0),
-        groupedUsers: groupedUsersResult[0].map((row: any) => ({
-          user_type: row.user_type ?? "Unknown",
-          user_count: Number(row.user_count ?? 0),
-          total_users: Number(row.total_users ?? 0),
-        })),
-      },
-    });
-  } catch (error: any) {
-    console.error("BigQuery error:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
+    return {
+      todayUsers: Number(usersTodayResult[0]?.users_started_today ?? 0),
+      totalUsers: Number(totalUsersResult[0]?.total_users ?? 0),
+      freev2StartedUsers: Number(freev2StartedUsersResult[0]?.total_users ?? 0),
+      last7DaysUsers: Number(usersLast7DaysResult[0]?.users_started_last_7_days ?? 0),
+      activeUsers: Number(activeUsersResult[0]?.active_users_last_7_days ?? 0),
+      groupedUsers: groupedUsersResult[0].map((row: any) => ({
+        user_type: row.user_type ?? "Unknown",
+        user_count: Number(row.user_count ?? 0),
+        total_users: Number(row.total_users ?? 0),
+      })),
+    };
 }

@@ -2,9 +2,13 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery"; // your BigQuery client
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET() {
   try {
+    const scalpHealth = await withCache(
+      "scalp_health_overall",
+      async () => {
     
     // Optimized BigQuery using CTE to parse JSON once
     const scalpHealthQuery = `
@@ -28,12 +32,15 @@ export async function GET() {
         AND start_date != ''
     `;
 
-    // Run the query
-    const [rows] = await bigquery.query({ query: scalpHealthQuery });
+        // Run the query
+        const [rows] = await bigquery.query({ query: scalpHealthQuery });
+        return rows[0];
+      }
+    );
 
     // Return formatted JSON response
     return NextResponse.json({
-      scalpHealth: rows[0],
+      scalpHealth,
     });
   } catch (error) {
     console.error("Error fetching scalp health data:", error);

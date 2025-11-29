@@ -2,9 +2,13 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET() {
   try {
+    const data = await withCache(
+      "regrowth_treatment",
+      async () => {
     
     // ✅ Hair Loss Reduction Report
     const hairLossReducedQuery = `
@@ -60,16 +64,20 @@ export async function GET() {
         AND JSON_VALUE(data, '$.start_date.date') != ''
     `;
 
-    // Run both queries in parallel
-    const [[hairLossReduced], [hairLossStopped]] = await Promise.all([
-      bigquery.query({ query: hairLossReducedQuery }),
-      bigquery.query({ query: hairLossStoppedQuery }),
-    ]);
+        // Run both queries in parallel
+        const [[hairLossReduced], [hairLossStopped]] = await Promise.all([
+          bigquery.query({ query: hairLossReducedQuery }),
+          bigquery.query({ query: hairLossStoppedQuery }),
+        ]);
 
-    return NextResponse.json({
-      reduction: hairLossReduced[0],
-      stopped: hairLossStopped[0],
-    });
+        return {
+          reduction: hairLossReduced[0],
+          stopped: hairLossStopped[0],
+        };
+      }
+    );
+
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error("BigQuery error:", error);
     return NextResponse.json({ error: "Failed to fetch hair loss stats" }, { status: 500 });

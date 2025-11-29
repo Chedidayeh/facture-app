@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get("range") || "7d";
+
+    // Create unique cache key based on range
+    const cacheKey = `users_chart_${range}`;
+
+    const formatted = await withCache(
+      cacheKey,
+      async () => {
 
     // Map range to number of days
     const daysMap: Record<string, number> = {
@@ -29,11 +37,13 @@ export async function GET(request: Request) {
 
     const [rows] = await bigquery.query({ query });
 
-    // Format data for frontend
-    const formatted = rows.map((row: any) => ({
-      date: row.date,
-      users: Number(row.users),
-    }));
+        // Format data for frontend
+        return rows.map((row: any) => ({
+          date: row.date,
+          users: Number(row.users),
+        }));
+      }
+    );
 
     return NextResponse.json(formatted);
   } catch (error: any) {

@@ -124,12 +124,14 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 // Added constants & labels for new eligible types
-const PRESET_USER_TYPES = ["all", "eligible_true", "eligible_false"];
+const PRESET_USER_TYPES = ["all", "vip", "freev2", "free", "eligible_true", "eligible_false"];
 const USER_TYPE_LABELS: Record<string, string> = {
   all: "All Users",
   eligible_true: "freev2 (eligible)",
   eligible_false: "freev2 (not eligible)",
-  // api-provided concrete types (free, vip, ...) will fall back to their raw names
+  vip: "vip",
+  freev2: "freev2",
+  free: "free",
 };
 
 export function ChartLineRetention() {

@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery"; // your BigQuery client
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET() {
   try {
-    const purchaseFunnelQuery = `
+    const purchaseFunnel = await withCache("purchase_funnels", async () => {
+      const purchaseFunnelQuery = `
 -- Step 1: Extract needed JSON fields once per row
 WITH extracted AS (
   SELECT
@@ -38,11 +40,13 @@ SELECT
 FROM extracted;
 `;
 
-    // Run the query
-    const [rows] = await bigquery.query({ query: purchaseFunnelQuery });
+      // Run the query
+      const [rows] = await bigquery.query({ query: purchaseFunnelQuery });
+      return rows[0];
+    });
 
     // Return response
-    return NextResponse.json({ purchaseFunnel: rows[0] });
+    return NextResponse.json({ purchaseFunnel });
   } catch (error) {
     console.error("Error fetching purchase funnel data:", error);
     return NextResponse.json(

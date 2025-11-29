@@ -1,11 +1,19 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery"; // BigQuery client
 import { projectId } from "@/lib/query";
+import { withCache } from "@/lib/cache-utils";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get("range") || "7d";
+
+    // Create a unique cache key based on the range parameter
+    const cacheKey = `scalp_health_daily_${range}`;
+
+    const data = await withCache(
+      cacheKey,
+      async () => {
 
     // Determine start date based on range
     const today = new Date();
@@ -46,11 +54,15 @@ export async function GET(request: Request) {
 
     const [rows] = await bigquery.query({ query });
 
-    return NextResponse.json({
-      scalpHealth: rows,
-      startDate,
-      range,
-    });
+        return {
+          scalpHealth: rows,
+          startDate,
+          range,
+        };
+      }
+    );
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Error fetching scalp health data:", error);
     return NextResponse.json({ error: "Failed to fetch scalp health data" }, { status: 500 });

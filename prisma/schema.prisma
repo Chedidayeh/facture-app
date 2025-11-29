@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SyncLog {
+  id                String   @id @default(cuid())
+  syncName          String   @unique
+  lastExecutionTime DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  status            String   @default("success") // success | failed | pending
+  errorMessage      String?  // Store error details if sync fails
+  recordsProcessed  Int      @default(0) // Track how many records were merged
+
+  @@index([syncName])
+}
+
+model CachedStats {
+  id String @id @default(cuid())
+  statsKey String @unique // e.g., "user_stats"
+  data Json // Store the entire response
+  cachedAt DateTime @default(now())
+  expiresAt DateTime
+  syncName String // Reference which sync created this
+  
+  @@index([statsKey])
+  @@index([expiresAt])
+}
+

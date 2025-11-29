@@ -20,6 +20,7 @@ import {
 import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";
 import { AppSidebar } from "./_components/sidebar/app-sidebar";
 import { LayoutControls } from "./_components/sidebar/layout-controls";
+import { LastUpdated } from "./_components/last-updated";
 
 export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
   const cookieStore = await cookies();
@@ -63,7 +64,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
             <div className="flex items-center gap-1 lg:gap-2">
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mx-2 data-[orientation=vertical]:h-4" />
-              {/* <SearchDialog /> */}
+              <LastUpdated />
             </div>
             <div className="flex items-center gap-2">
               <LayoutControls {...layoutPreferences} />
