@@ -28,18 +28,11 @@ if (!admin.apps.length) {
 
 const db = admin.firestore();
 
-export async function POST(request: Request) {
+export async function GET() {
   try {
-    console.log("📩 Received POST request to /api/firestore/retrigger");
 
-    const { collection } = await request.json();
-    if (!collection) {
-      console.warn("⚠️ Missing collection name in request body");
-      return NextResponse.json({ error: "Missing collection name." }, { status: 400 });
-    }
 
-    console.log(`🔍 Fetching documents from Firestore collection: "${collection}"...`);
-    const snapshot = await db.collection(collection).limit(100).get(); // <-- Limit to 5 documents
+    const snapshot = await db.collection("Users").limit(100).get(); // <-- Limit to 5 documents
     console.log(`📦 Retrieved ${snapshot.size} documents for testing.`);
 
     let count = 0;
@@ -47,16 +40,16 @@ export async function POST(request: Request) {
 for (const doc of snapshot.docs) {
   const data = doc.data();
   // Add a temporary field to trigger BigQuery streaming
-  data.__test_trigger = new Date().toISOString();
-  await db.collection(collection).doc(doc.id).set(data, { merge: true });
+  data.__testt_trigger = new Date().toISOString();
+  await db.collection("Users").doc(doc.id).set(data, { merge: true });
   count++;
 }
 
 
-    console.log(`✅ Successfully rewrote ${count} documents in "${collection}"`);
+    console.log(`✅ Successfully rewrote ${count} documents in "Users"`);
 
     return NextResponse.json({
-      message: `✅ Test rewrite: ${count} documents in collection "${collection}"`,
+      message: `✅ Test rewrite: ${count} documents in collection "Users"`,
     });
   } catch (err: any) {
     console.error("🔥 Error during Firestore rewrite:", err);

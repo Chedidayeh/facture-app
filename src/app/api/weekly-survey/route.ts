@@ -1,9 +1,11 @@
 // app/api/weekly-survey/route.ts
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
+import { projectId } from "@/lib/query";
 
 export async function GET() {
   try {
+    
     const query = `
       WITH parsed AS (
         SELECT
@@ -26,7 +28,7 @@ export async function GET() {
           JSON_VALUE(data, '$.questions.4') AS q5_text,
           JSON_VALUE(data, '$.questions.5') AS q6_text,
           JSON_VALUE(data, '$.questions.6') AS q7_text
-        FROM \`keshah-app.firestore_export.pchecka_raw_latest\`
+        FROM \`${projectId}.firestore_export.pchecka_raw_latest\`
       ),
       weekly_totals AS (
         SELECT week, COUNT(*) AS total_users

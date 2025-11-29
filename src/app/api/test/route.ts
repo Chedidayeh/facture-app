@@ -8,7 +8,7 @@ WITH users_with_feature AS (
     JSON_VALUE(data, '$.email') AS email,
     CAST(SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)) AS STRING) AS created_at,
     JSON_VALUE(data, '$.eligible_for_special_regrowth_features') AS eligible_for_special_regrowth_features
-    FROM \`keshah-app.firestore_export.users_raw_latest\`
+    FROM \`keshah-app.analytics.users_latest\`
   WHERE JSON_VALUE(data, '$.eligible_for_special_regrowth_features') IS NOT NULL
       AND JSON_QUERY(data, '$.progress.day1') IS NOT NULL
 
@@ -29,7 +29,7 @@ WITH filtered_users AS (
     JSON_VALUE(data, '$.eligible_for_special_regrowth_features') AS eligible_for_special_regrowth_features,
     JSON_VALUE(data, '$.user_type') AS user_type,
     JSON_VALUE(data, '$.userLocalTimeZone') AS userLocalTimeZone
-    FROM \`keshah-app.firestore_export.users_raw_latest\`
+    FROM \`keshah-app.analytics.users_latest\`
   WHERE JSON_VALUE(data, '$.eligible_for_special_regrowth_features') = 'true'
     AND JSON_VALUE(data, '$.user_type') = 'freev2'
     AND DATE(SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64))) 
@@ -66,7 +66,7 @@ WITH extracted AS (
 
     -- Extract day1 progress as an ARRAY
     JSON_EXTRACT_ARRAY(JSON_QUERY(data, '$.progress.day1')) AS day1_array
-    FROM \`keshah-app.firestore_export.users_raw_latest\`
+    FROM \`keshah-app.analytics.users_latest\`
   -- PARTITION PRUNING (only scan today/yesterday)
   WHERE DATE(
     SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64))
@@ -109,7 +109,7 @@ FROM filtered;
   const test4 = `
 SELECT
   JSON_VALUE(ex, '$.is_completed') AS is_completed_value
-    FROM \`keshah-app.firestore_export.users_raw_latest\` AS u
+    FROM \`keshah-app.analytics.users_latest\` AS u
 CROSS JOIN UNNEST(JSON_EXTRACT_ARRAY(JSON_QUERY(u.data, '$.progress.day1'), '$')) AS ex
 WHERE JSON_QUERY(u.data, '$.progress.day1') IS NOT NULL
 LIMIT 1;

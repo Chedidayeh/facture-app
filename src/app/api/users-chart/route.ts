@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
+import { projectId } from "@/lib/query";
 
 export async function GET(request: Request) {
   try {
@@ -19,7 +20,7 @@ export async function GET(request: Request) {
       SELECT
         FORMAT_TIMESTAMP('%Y-%m-%d', TIMESTAMP_SECONDS(SAFE_CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64))) AS date,
         COUNT(*) AS users
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
+      FROM \`${projectId}.analytics.users_latest\`
       WHERE JSON_VALUE(data, '$.created_at._seconds') IS NOT NULL
         AND TIMESTAMP_SECONDS(SAFE_CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)) >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
       GROUP BY date

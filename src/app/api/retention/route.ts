@@ -1,6 +1,7 @@
 // app/api/retention/route.ts
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
+import { projectId } from "@/lib/query";
 
 export async function GET(request: Request) {
   try {
@@ -64,7 +65,7 @@ WITH users AS (
     JSON_VALUE(data, '$.email') AS email,
     SAFE.TIMESTAMP_SECONDS(CAST(JSON_VALUE(data, '$.created_at._seconds') AS INT64)) AS created_at,
     JSON_QUERY(data, '$.progress') AS progress
-  FROM \`keshah-app.firestore_export.users_raw_latest\`
+  FROM \`${projectId}.analytics.users_latest\`
   WHERE JSON_QUERY(data, '$.progress') IS NOT NULL
     ${userTypeCondition}
     ${rangeFilter}

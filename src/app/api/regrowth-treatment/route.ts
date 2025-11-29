@@ -1,9 +1,11 @@
 // app/api/user-stats/hair-loss/route.ts
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
+import { projectId } from "@/lib/query";
 
 export async function GET() {
   try {
+    
     // ✅ Hair Loss Reduction Report
     const hairLossReducedQuery = `
       SELECT
@@ -25,7 +27,7 @@ export async function GET() {
           ),
           2
         ) AS purchased_percentage_of_total
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
+      FROM \`${projectId}.analytics.users_latest\`
       WHERE JSON_VALUE(data, '$.user_type') = 'freev2'
         AND JSON_VALUE(data, '$.start_date.date') IS NOT NULL
         AND JSON_VALUE(data, '$.start_date.date') != ''
@@ -52,7 +54,7 @@ export async function GET() {
           ),
           2
         ) AS purchased_percentage_of_total
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
+      FROM \`${projectId}.analytics.users_latest\`
       WHERE JSON_VALUE(data, '$.user_type') = 'freev2'
         AND JSON_VALUE(data, '$.start_date.date') IS NOT NULL
         AND JSON_VALUE(data, '$.start_date.date') != ''

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery"; // BigQuery client
+import { projectId } from "@/lib/query";
 
 export async function GET(request: Request) {
   try {
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
         SELECT
           SAFE_CAST(JSON_EXTRACT_SCALAR(data, '$.created_at._seconds') AS INT64) AS created_at_seconds,
           JSON_EXTRACT_SCALAR(data, '$.scalp_health_support_purchased') AS purchased
-        FROM \`keshah-app.firestore_export.users_raw_latest\`
+        FROM \`${projectId}.analytics.users_latest\`
       )
       SELECT
         DATE(TIMESTAMP_SECONDS(created_at_seconds)) AS date,

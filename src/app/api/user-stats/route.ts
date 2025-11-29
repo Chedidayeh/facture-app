@@ -1,16 +1,18 @@
 // app/api/user-stats/route.ts
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery";
+import { projectId } from "@/lib/query";
 
 export async function GET() {
   try {
+    
     // -----------------------------
     // 1️⃣ Users who started today
     // -----------------------------
     const usersStartedTodayQuery = `
       SELECT
         COUNT(*) AS users_started_today
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
+      FROM \`${projectId}.analytics.users_latest\`
       WHERE JSON_EXTRACT_SCALAR(data, '$.start_date.date') = FORMAT_DATE('%d/%m/%Y', CURRENT_DATE())
     `;
 
@@ -20,7 +22,7 @@ export async function GET() {
     const totalUsersQuery = `
       SELECT
         COUNT(*) AS total_users
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
+      FROM \`${projectId}.analytics.users_latest\`
     `;
 
     // -----------------------------
@@ -29,7 +31,7 @@ export async function GET() {
     const freev2StartedUsersQuery = `
       SELECT
         COUNT(*) AS total_users
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
+      FROM \`${projectId}.analytics.users_latest\`
       WHERE JSON_EXTRACT_SCALAR(data, '$.user_type') = 'freev2'
         AND JSON_EXTRACT_SCALAR(data, '$.start_date.date') IS NOT NULL
         AND JSON_EXTRACT_SCALAR(data, '$.start_date.date') != ''
@@ -41,7 +43,7 @@ export async function GET() {
     const usersLast7DaysQuery = `
       SELECT
         COUNT(*) AS users_started_last_7_days
-      FROM \`keshah-app.firestore_export.users_raw_latest\`
+      FROM \`${projectId}.analytics.users_latest\`
       WHERE JSON_EXTRACT_SCALAR(data, '$.start_date.date') IS NOT NULL
         AND PARSE_DATE('%d/%m/%Y', JSON_EXTRACT_SCALAR(data, '$.start_date.date'))
             BETWEEN DATE_SUB(CURRENT_DATE(), INTERVAL 6 DAY) AND CURRENT_DATE()
@@ -56,7 +58,7 @@ export async function GET() {
           JSON_VALUE(data, '$.wp_user.ID') AS user_id,
           SAFE.PARSE_DATE('%d/%m/%Y', JSON_VALUE(data, '$.start_date.date')) AS start_date,
           JSON_EXTRACT(data, '$.progress') AS progress
-        FROM \`keshah-app.firestore_export.users_raw_latest\`
+        FROM \`${projectId}.analytics.users_latest\`
         WHERE JSON_EXTRACT(data, '$.progress') IS NOT NULL
       ),
       flatten_progress AS (
@@ -82,13 +84,13 @@ export async function GET() {
     const totalGroupedUsersQuery = `
       WITH total_count AS (
         SELECT COUNT(*) AS total_users
-        FROM \`keshah-app.firestore_export.users_raw_latest\`
+        FROM \`${projectId}.analytics.users_latest\`
       )
       SELECT
         JSON_EXTRACT_SCALAR(data, '$.user_type') AS user_type,
         COUNT(*) AS user_count,
         total_count.total_users
-      FROM \`keshah-app.firestore_export.users_raw_latest\`, total_count
+      FROM \`${projectId}.analytics.users_latest\`, total_count
       GROUP BY user_type, total_count.total_users
       ORDER BY user_count DESC
     `;

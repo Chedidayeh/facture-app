@@ -1,9 +1,11 @@
 // app/api/scalp-health-overall/route.ts
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery"; // your BigQuery client
+import { projectId } from "@/lib/query";
 
 export async function GET() {
   try {
+    
     // Optimized BigQuery using CTE to parse JSON once
     const scalpHealthQuery = `
       WITH parsed AS (
@@ -11,7 +13,7 @@ export async function GET() {
           JSON_EXTRACT_SCALAR(data, '$.user_type') AS user_type,
           JSON_EXTRACT_SCALAR(data, '$.start_date.date') AS start_date,
           JSON_EXTRACT_SCALAR(data, '$.scalp_health_support_purchased') AS purchased
-        FROM \`keshah-app.firestore_export.users_raw_latest\`
+        FROM \`${projectId}.analytics.users_latest\`
       )
       SELECT
         COUNT(*) AS total_users,

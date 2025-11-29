@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import bigquery from "@/lib/bigquery"; // your BigQuery client
+import { projectId } from "@/lib/query";
 
 export async function GET() {
   try {
@@ -10,7 +11,7 @@ WITH extracted AS (
     JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_reduction') AS reported_reduction,
     JSON_EXTRACT_SCALAR(data, '$.regrowth_reported_success') AS reported_success,
     JSON_EXTRACT_SCALAR(data, '$.regrowth_treatment_purchased') AS treatment_purchased
-  FROM \`keshah-app.firestore_export.users_raw_latest\`
+  FROM \`${projectId}.analytics.users_latest\`
   WHERE JSON_EXTRACT(data, '$.regrowth_reported_reduction') IS NOT NULL
      OR JSON_EXTRACT(data, '$.regrowth_reported_success') IS NOT NULL
      OR JSON_EXTRACT(data, '$.regrowth_treatment_purchased') IS NOT NULL
