@@ -4,7 +4,7 @@ import { invalidateCache } from "@/lib/cache-utils";
 import bigquery from "@/lib/bigquery";
 
 const SYNC_NAME = "users_latest_sync";
-const COOLDOWN_MINUTES = 1;
+const COOLDOWN_MINUTES = 5;
 
 
 
