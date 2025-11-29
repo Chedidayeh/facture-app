@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
+import { useSyncContext } from '@/contexts/sync-context';
 
 export function LastUpdated() {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { isSyncing, refreshKey } = useSyncContext();
 
   useEffect(() => {
     async function fetchLastSync() {
@@ -31,10 +33,10 @@ export function LastUpdated() {
     const interval = setInterval(fetchLastSync, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [refreshKey]);
 
-  if (isLoading) {
-    return <div className="text-xs text-muted-foreground">Loading...</div>;
+  if (isLoading || isSyncing) {
+    return <div className="text-xs text-muted-foreground">Syncing...</div>;
   }
 
   return (

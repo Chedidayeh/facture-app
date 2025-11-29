@@ -42,7 +42,8 @@ export async function GET(request: Request) {
       userTypeCondition = `AND JSON_VALUE(data, '$.eligible_for_special_regrowth_features') = 'true'
                            AND JSON_VALUE(data, '$.user_type') = 'freev2'`;
     } else if (user_type === "eligible_false") {
-      userTypeCondition = `AND JSON_VALUE(data, '$.eligible_for_special_regrowth_features') = 'false'
+      userTypeCondition = `AND (JSON_VALUE(data, '$.eligible_for_special_regrowth_features') = 'false'
+                           OR JSON_VALUE(data, '$.eligible_for_special_regrowth_features') IS NULL)
                            AND JSON_VALUE(data, '$.user_type') = 'freev2'`;
     } else {
       userTypeCondition = `AND JSON_VALUE(data, '$.user_type') = '${user_type}'`;
