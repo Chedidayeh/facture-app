@@ -2,13 +2,12 @@ import { db } from "@/db";
 import { query, query2 } from "@/lib/query";
 import { BigQuery } from "@google-cloud/bigquery";
 import { invalidateCache } from "@/lib/cache-utils";
+import bigquery from "@/lib/bigquery";
 
 const SYNC_NAME = "users_latest_sync";
 const COOLDOWN_MINUTES = 1;
 
-const bigquery = new BigQuery({
-  projectId: process.env.GCP_PROJECT_ID_MOETEZ || "test-bigquery-3dc1a",
-});
+
 
 /**
  * Checks if enough time has passed since the last sync
