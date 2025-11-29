@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "vercel-build": "npm install --legacy-peer-deps && npm run build"
+
   },
   "dependencies": {
     "@google-cloud/bigquery": "^8.1.1",
