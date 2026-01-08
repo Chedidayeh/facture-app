@@ -12,8 +12,8 @@ import { DataTablePagination } from "@/components/data-table/data-table-paginati
 import { DataTable as DataTableNew } from "@/components/data-table/data-table";
 import { ClientTableData } from "../actions";
 import { Badge } from "@/components/ui/badge";
-import { ClientStatus } from "@prisma/client";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
+import { ClientStatus } from "@/lib/types";
 
 export function DataTable({ data: initialData }: { data: ClientTableData[] }) {
   const [data, setData] = React.useState(() => initialData);
