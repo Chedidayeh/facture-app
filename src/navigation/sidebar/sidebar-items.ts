@@ -55,7 +55,7 @@ export const sidebarItems: NavGroup[] = [
         icon: Users,
       },
       {
-        title: "Invoices",
+        title: "Factures",
         url: "/dashboard/invoices",
         icon: ReceiptText,
       },

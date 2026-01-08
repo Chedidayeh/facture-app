@@ -7,27 +7,280 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model SyncLog {
-  id                String   @id @default(cuid())
-  syncName          String   @unique
-  lastExecutionTime DateTime @updatedAt
-  createdAt         DateTime @default(now())
-  status            String   @default("success") // success | failed | pending
-  errorMessage      String?  // Store error details if sync fails
-  recordsProcessed  Int      @default(0) // Track how many records were merged
+//////////////////////////
+// ENUMS
+//////////////////////////
 
-  @@index([syncName])
+enum Role {
+  ADMIN
+  ACCOUNTANT
+  USER
 }
 
-model CachedStats {
-  id String @id @default(cuid())
-  statsKey String @unique // e.g., "user_stats"
-  data Json // Store the entire response
-  cachedAt DateTime @default(now())
-  expiresAt DateTime
-  syncName String // Reference which sync created this
+enum ClientType {
+  PARTICULIER
+  PROFESSIONNEL
+}
+
+enum InvoiceType {
+  LOCAL
+  EXPORTATION
+  SUSPENSION
+}
+
+enum InvoiceStatus {
+  DRAFT
+  VALIDATED
+  PAID
+}
+
+enum Currency {
+  TND
+  EUR
+  USD
+}
+
+enum ClientStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+//////////////////////////
+// AUTH & USERS
+//////////////////////////
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(USER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  invoicesValidated Invoice[] @relation("ValidatedBy")
+}
+
+//////////////////////////
+// COMPANY (SELLER)
+//////////////////////////
+
+model Company {
+  id           String @id @default(uuid())
+  name         String
+  address      String
+  taxNumber    String @unique
+  phone        String?
+  email        String?
+  logo         String? // base64 or file path
+
+  defaultCurrency Currency @default(TND)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exercises        Exercise[]
+  clients          Client[]
+  invoices         Invoice[]
+  invoiceSequences InvoiceSequence[]
+  clientSequences  ClientSequence[]
+}
+
+//////////////////////////
+// EXERCISE COMPTABLE
+//////////////////////////
+
+model Exercise {
+  id        String   @id @default(uuid())
+  year      Int
+  isOpen    Boolean @default(true)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  invoices  Invoice[]
+
+  @@unique([companyId, year])
+}
+
+//////////////////////////
+// CLIENTS
+//////////////////////////
+
+model Client {
+  id           String      @id @default(uuid())
+  codeClient   String
+  type         ClientType
+
+  name         String
+  address      String
+  country      String
+
+  taxNumber    String?     // obligatoire si PROFESSIONNEL
+  email        String?
+  phone        String?
+
+  defaultCurrency Currency @default(TND)
+  defaultInvoiceType InvoiceType @default(LOCAL)
+
+  status       ClientStatus @default(ACTIVE)
+
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id])
+
+  invoices     Invoice[]
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([companyId, codeClient])
+}
+
+//////////////////////////
+// INVOICES
+//////////////////////////
+
+model Invoice {
+  id             String @id @default(uuid())
+
+  invoiceNumber  String   // FAC-2026-00001
+  date           DateTime
+  exerciseYear   Int
+
+  type           InvoiceType
+  status         InvoiceStatus @default(DRAFT)
+
+  currency       Currency
+  exchangeRate   Decimal? @db.Decimal(10, 4) // obligatoire si currency != TND
+
+  totalHT        Decimal @db.Decimal(15, 3)
+  totalTVA       Decimal @db.Decimal(15, 3)
+  stampDuty      Decimal @db.Decimal(15, 3)
+  totalTTC       Decimal @db.Decimal(15, 3)
+
+  // Suspension TVA fields
+  suspensionAuthNumber String?
+  suspensionValidUntil DateTime?
+  purchaseOrderNumber  String?
+
+  clientId       String
+  client         Client @relation(fields: [clientId], references: [id])
+
+  companyId      String
+  company        Company @relation(fields: [companyId], references: [id])
+
+  exerciseId     String
+  exercise       Exercise @relation(fields: [exerciseId], references: [id])
+
+  validatedById  String?
+  validatedBy    User?   @relation("ValidatedBy", fields: [validatedById], references: [id])
+
+  items          InvoiceItem[]
+  payments       Payment[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  validatedAt    DateTime?
+
+  @@unique([companyId, invoiceNumber])
+  @@index([exerciseYear])
+  @@index([status])
+  @@index([clientId])
+}
+
+//////////////////////////
+// INVOICE ITEMS
+//////////////////////////
+
+model InvoiceItem {
+  id            String @id @default(uuid())
+
+  invoiceId     String
+  invoice       Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  description   String
+  quantity      Decimal @db.Decimal(10, 3)
+  unit          String
+  unitPriceHT   Decimal @db.Decimal(15, 3)
+  discount      Decimal @db.Decimal(5, 2) @default(0)
+
+  vatRate       Decimal @db.Decimal(5, 2)
+  lineTotalHT   Decimal @db.Decimal(15, 3)
+  lineTVA       Decimal @db.Decimal(15, 3)
+  lineTotalTTC  Decimal @db.Decimal(15, 3)
+
+  @@index([invoiceId])
+}
+
+//////////////////////////
+// PAYMENTS
+//////////////////////////
+
+model Payment {
+  id          String   @id @default(uuid())
+
+  invoiceId  String
+  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+
+  amount     Decimal @db.Decimal(15, 3)
+  method     String
+  paidAt     DateTime
+
+  createdAt  DateTime @default(now())
+
+  @@index([invoiceId])
+}
+
+//////////////////////////
+// INVOICE SEQUENCE
+//////////////////////////
+
+model InvoiceSequence {
+  id          String   @id @default(uuid())
+  companyId   String
+  year        Int
+  lastNumber  Int      @default(0)
   
-  @@index([statsKey])
-  @@index([expiresAt])
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([companyId, year])
+  @@index([companyId])
 }
 
+//////////////////////////
+// CLIENT SEQUENCE
+//////////////////////////
+
+model ClientSequence {
+  id          String   @id @default(uuid())
+  companyId   String
+  lastNumber  Int      @default(0)
+  
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([companyId])
+}
+
+//////////////////////////
+// CURRENCY RATES
+//////////////////////////
+
+model ExchangeRate {
+  id        String   @id @default(uuid())
+  currency  Currency
+  rate      Decimal  @db.Decimal(10, 4)
+  date      DateTime
+
+  createdAt DateTime @default(now())
+
+  @@unique([currency, date])
+  @@index([currency])
+  @@index([date])
+}
