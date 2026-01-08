@@ -83,9 +83,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
             </>
             : (
-              <SidebarMenuItem className="flex items-center justify-center gap-3 pb-4 border-b border-border50">
+              <SidebarMenuItem className="flex items-center justify-center gap-3 pb-3 border-b border-border50">
               <div className="flex flex-col  items-center gap-1">
-                <div className="relative rounded-xl bg-primary/10 flex items-center justify-center">
+                {/* <div className="relative rounded-xl bg-primary/10 flex items-center justify-center">
                   {theme === "dark" ? (
                     <img
                       src="/light.png"
@@ -100,10 +100,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   />)
                   }
   
-                </div>
+                </div> */}
                 <div className="text-left">
                   <h1 className="text-lg font-semibold tracking-tight text-foreground">
-                  KESHAH Analytics
+                  Facture app
                   </h1>
                 </div>
               </div>

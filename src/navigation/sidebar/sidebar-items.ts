@@ -50,14 +50,14 @@ export const sidebarItems: NavGroup[] = [
     label: "Main",
     items: [
       {
-        title: "Dashboard",
-        url: "/dashboard/view",
-        icon: LayoutDashboard,
+        title: "Clients",
+        url: "/dashboard/clients",
+        icon: Users,
       },
       {
-        title: "Purchases",
-        url: "/dashboard/purchases",
-        icon: ShoppingBasket,
+        title: "Invoices",
+        url: "/dashboard/invoices",
+        icon: ReceiptText,
       },
     ],
   },
