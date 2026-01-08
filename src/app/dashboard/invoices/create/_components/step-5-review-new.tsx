@@ -29,20 +29,26 @@ export function Step5Review({
   isValidating,
 }: Step5ReviewProps) {
   // Calculate totals
-  const totalHT = invoiceState.lines.reduce((sum, line) => sum + line.lineTotalHT, 0);
-  const totalTVA = invoiceState.lines.reduce((sum, line) => sum + line.lineTVA, 0);
+  const totalHT = invoiceState.lines.reduce(
+    (sum, line) => sum + line.lineTotalHT,
+    0
+  );
+  const totalTVA = invoiceState.lines.reduce(
+    (sum, line) => sum + line.lineTVA,
+    0
+  );
   // Corrected stamp duty logic: 0 for EXPORTATION, 0 if not TND, 1 for LOCAL and SUSPENSION
-  const stampDuty = 
-    invoiceState.invoiceType === "EXPORTATION" ? 0 :
-    invoiceState.currency !== "TND" ? 0 :
-    1;
+  const stampDuty =
+    invoiceState.invoiceType === "EXPORTATION"
+      ? 0
+      : invoiceState.currency !== "TND"
+      ? 0
+      : 1;
   const totalTTC = totalHT + totalTVA + stampDuty;
 
-  // Check if any line has a discount
-  const hasDiscount = invoiceState.lines.some(line => line.discount > 0);
-
   // Validate calculation formula
-  const calculationValid = Math.abs(totalHT * (1 + totalTVA / totalHT) + stampDuty - totalTTC) < 0.01;
+  const calculationValid =
+    Math.abs(totalHT * (1 + totalTVA / totalHT) + stampDuty - totalTTC) < 0.01;
 
   return (
     <Card className="p-6">
@@ -72,7 +78,12 @@ export function Step5Review({
               )}
             </Button>
 
-            <Button disabled={isLoading || isValidating} variant="outline" size="lg" onClick={onSaveAsDraft}>
+            <Button
+              disabled={isLoading || isValidating}
+              variant="outline"
+              size="lg"
+              onClick={onSaveAsDraft}
+            >
               <FileText className="mr-2 h-4 w-4" />
               Enregistrer en brouillon
             </Button>
@@ -81,7 +92,11 @@ export function Step5Review({
 
         {/* Back button */}
         <div className="flex justify-start">
-          <Button onClick={onBack} variant="outline" disabled={isLoading || isValidating}>
+          <Button
+            onClick={onBack}
+            variant="outline"
+            disabled={isLoading || isValidating}
+          >
             ← Retour aux modifications
           </Button>
         </div>
@@ -110,10 +125,16 @@ export function Step5Review({
             {/* Logo */}
             {invoiceState.companyLogo ? (
               <div className="shrink-0">
-                <img src={invoiceState.companyLogo} alt="Company Logo" className="h-16 w-auto object-contain bg-white p-2 rounded" />
+                <img
+                  src={invoiceState.companyLogo}
+                  alt="Company Logo"
+                  className="h-16 w-auto object-contain bg-white p-2 rounded"
+                />
               </div>
             ) : (
-              <div className="text-xl font-bold">{invoiceState.company.name}</div>
+              <div className="text-xl font-bold">
+                {invoiceState.company.name}
+              </div>
             )}
 
             {/* INVOICE Title */}
@@ -126,16 +147,18 @@ export function Step5Review({
             <div className="mb-8 grid grid-cols-2 gap-8">
               {/* Left: Company Address */}
               <div>
-                <h3 className="mb-3 text-sm font-bold">Adresse de l'entreprise</h3>
+                <h3 className="mb-3 text-sm font-bold">
+                  Adresse de l'entreprise
+                </h3>
                 <div className="space-y-1 text-sm">
                   <p className="font-semibold">{invoiceState.company.name}</p>
                   <p>{invoiceState.company.address}</p>
                   <p>Téléphone: {invoiceState.company.phone}</p>
                   <p>Email: {invoiceState.company.email}</p>
-                  <p className="mt-2 font-medium">
+                  <p className="font-medium">
                     Matricule fiscal: {invoiceState.company.fiscalMatricule}
                   </p>
-                  {invoiceState.invoiceType && (
+                  {/* {invoiceState.invoiceType && (
                     <p className="mt-2 text-xs text-gray-600">
                       Type:{" "}
                       {invoiceState.invoiceType === "LOCAL"
@@ -144,7 +167,7 @@ export function Step5Review({
                           ? "Facture exportation"
                           : "Facture en suspension de TVA"}
                     </p>
-                  )}
+                  )} */}
                 </div>
               </div>
 
@@ -152,10 +175,14 @@ export function Step5Review({
               <div className="space-y-1 text-right text-sm">
                 <p>Date: {format(invoiceState.invoiceDate, "dd/MM/yyyy")}</p>
                 <p>Facture #: {invoiceState.invoiceNumber}</p>
-                <p>Client ID: {invoiceState.client.fiscalMatricule || "Particulier"}</p>
+                <p>
+                  Client ID:{" "}
+                  {invoiceState.client.fiscalMatricule || "Particulier"}
+                </p>
                 {invoiceState.currency !== "TND" && (
                   <p className="mt-1 text-xs text-gray-600">
-                    Devise: {invoiceState.currency} • Taux: {invoiceState.exchangeRate.toFixed(4)} TND
+                    Devise: {invoiceState.currency} • Taux:{" "}
+                    {invoiceState.exchangeRate.toFixed(4)} TND
                   </p>
                 )}
               </div>
@@ -169,16 +196,27 @@ export function Step5Review({
                 <div className="space-y-1 text-sm">
                   <p className="font-semibold">{invoiceState.client.name}</p>
                   <p>{invoiceState.client.address}</p>
+                  <p className="">{invoiceState.client.country}</p>
                   {invoiceState.client.fiscalMatricule && (
-                    <p>Matricule fiscal: {invoiceState.client.fiscalMatricule}</p>
+                    <p>
+                      Matricule fiscal: {invoiceState.client.fiscalMatricule}
+                    </p>
                   )}
-                  <p className="text-xs text-gray-600 mt-2">
-                    {invoiceState.client.isProfessional ? "Client professionnel" : "Client particulier"}
+                  <p className="">
+                    {invoiceState.client.isProfessional
+                      ? "Client professionnel"
+                      : "Client particulier"}
                   </p>
                 </div>
                 <p className="mt-4 text-sm">
                   Date d'échéance:{" "}
-                  {format(new Date(invoiceState.invoiceDate.getTime() + 30 * 24 * 60 * 60 * 1000), "dd/MM/yyyy")}
+                  {format(
+                    new Date(
+                      invoiceState.invoiceDate.getTime() +
+                        30 * 24 * 60 * 60 * 1000
+                    ),
+                    "dd/MM/yyyy"
+                  )}
                 </p>
               </div>
 
@@ -193,47 +231,46 @@ export function Step5Review({
               <table className="w-full border-black border  text-sm">
                 <thead>
                   <tr className="bg-black text-white">
-                    <th className="w-24 px-4 py-3 text-center font-bold">Quantité</th>
-                    <th className="px-4 py-3 text-left font-bold">Description</th>
-                    <th className="w-32 px-4 py-3 text-right font-bold">Prix unitaire</th>
-                    {hasDiscount && (
-                      <th className="w-24 px-4 py-3 text-center font-bold">Remise</th>
-                    )}
-                    <th className="w-28 px-4 py-3 text-center font-bold">TVA?</th>
-                    <th className="w-32 px-4 py-3 text-right font-bold">Montant</th>
+                    <th className="px-4 py-3 text-left font-bold">
+                      Description
+                    </th>
+                    <th className="w-20 px-4 py-3 text-center font-bold">
+                      Qté
+                    </th>
+                    <th className="w-24 px-4 py-3 text-center font-bold">
+                      Unité
+                    </th>
+                    <th className="w-32 px-4 py-3 text-right font-bold">
+                      Prix Unit. HT
+                    </th>
+                    <th className="w-24 px-4 py-3 text-right font-bold">
+                      Remise
+                    </th>
+                    <th className="w-32 px-4 py-3 text-right font-bold">
+                      Total HT
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {invoiceState.lines.map((line, index) => (
                     <tr key={line.id} className="border-b border-black">
-                      <td className="border-r border-black px-4 py-3 text-center">
-                        {line.quantity} {line.unit}
-                      </td>
                       <td className="border-r border-black px-4 py-3">
                         <div className="font-medium">{line.description}</div>
                       </td>
-                      <td className="border-r border-black px-4 py-3 text-right">
-                        {line.unitPriceHT.toFixed(3)} {invoiceState.currency}
-                      </td>
-                      {hasDiscount && (
-                        <td className="border-r border-black px-4 py-3 text-center">
-                          {line.discount > 0 ? (
-                            <div className="">
-                              <div className="font-medium">{line.discount}%</div>
-                              <div className="text-xs">
-                              ( {((line.unitPriceHT * line.quantity * line.discount) / 100).toFixed(3)} {invoiceState.currency} )
-                              </div>
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-                      )}
                       <td className="border-r border-black px-4 py-3 text-center">
-                        {line.vatRate > 0 ? "Oui" : "Non"}
+                        {line.quantity}
+                      </td>
+                      <td className="border-r border-black px-4 py-3 text-center">
+                        {line.unit}
+                      </td>
+                      <td className="border-r border-black px-4 py-3 text-right">
+                        {line.unitPriceHT.toFixed(2)}
+                      </td>
+                      <td className="border-r border-black px-4 py-3 text-right">
+                        {line.discount > 0 ? `${line.discount}%` : "0%"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold">
-                        {line.lineTotalHT.toFixed(3)} {invoiceState.currency}
+                        {line.lineTotalHT.toFixed(2)}
                       </td>
                     </tr>
                   ))}
@@ -247,33 +284,25 @@ export function Step5Review({
                 <div className="flex justify-between border-b py-2">
                   <span>Sous-total (HT)</span>
                   <span className="font-semibold">
-                    {totalHT.toFixed(3)} {invoiceState.currency}
-                  </span>
-                </div>
-                <div className="flex justify-between border-b py-2">
-                  <span>Taux de TVA</span>
-                  <span className="font-semibold">
-                    {invoiceState.lines.length > 0 && totalHT > 0
-                      ? `${((totalTVA / totalHT) * 100).toFixed(2)}%`
-                      : "0%"}
+                    {totalHT.toFixed(2)} {invoiceState.currency}
                   </span>
                 </div>
                 <div className="flex justify-between border-b py-2">
                   <span>Total TVA</span>
                   <span className="font-semibold">
-                    {totalTVA.toFixed(3)} {invoiceState.currency}
+                    {totalTVA.toFixed(2)} {invoiceState.currency}
                   </span>
                 </div>
                 <div className="flex justify-between border-b py-2">
                   <span>Droit de timbre</span>
                   <span className="font-semibold">
-                    {stampDuty.toFixed(3)} {invoiceState.currency === "TND" ? "DT" : invoiceState.currency}
+                    {stampDuty.toFixed(2)} {invoiceState.currency}
                   </span>
                 </div>
                 <div className="mt-2 flex justify-between bg-black px-4 py-2 text-base font-bold text-white">
                   <span>TOTAL</span>
                   <span>
-                    {totalTTC.toFixed(3)} {invoiceState.currency}
+                    {totalTTC.toFixed(2)} {invoiceState.currency}
                   </span>
                 </div>
               </div>
@@ -282,17 +311,26 @@ export function Step5Review({
             {/* Suspension Mention if applicable */}
             {invoiceState.invoiceType === "SUSPENSION" && (
               <div className="mt-20 rounded bg-yellow-50/60 p-4">
-                <p className="mb-2 text-sm font-bold text-black">SUSPENSION DE TVA:</p>
+                <p className="mb-2 text-sm font-bold text-black">
+                  SUSPENSION DE TVA:
+                </p>
                 <p className="text-sm text-black leading-relaxed">
-                  « Vente en suspension de TVA suivant autorisation d'achat en suspension N°{" "}
-                  <strong className="font-bold">{invoiceState.suspensionAuthNumber}</strong> valable jusqu'au{" "}
+                  « Vente en suspension de TVA suivant autorisation d'achat en
+                  suspension N°{" "}
+                  <strong className="font-bold">
+                    {invoiceState.suspensionAuthNumber}
+                  </strong>{" "}
+                  valable jusqu'au{" "}
                   <strong className="font-bold">
                     {invoiceState.suspensionValidUntil
                       ? format(invoiceState.suspensionValidUntil, "dd/MM/yyyy")
                       : "N/A"}
                   </strong>{" "}
                   et suivant Bon de commande N°{" "}
-                  <strong className="font-bold">{invoiceState.suspensionPurchaseOrderNumber}</strong> »
+                  <strong className="font-bold">
+                    {invoiceState.suspensionPurchaseOrderNumber}
+                  </strong>{" "}
+                  »
                 </p>
               </div>
             )}

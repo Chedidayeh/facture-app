@@ -54,7 +54,7 @@ export function Step3Lines({ lines, invoiceType, onBack, onNext, isLoading }: St
     setEditingLine(null);
     setDescription("");
     setQuantity(1);
-    setUnit("Unité");
+    setUnit("");
     setUnitPriceHT(0);
     setDiscount(0);
     
@@ -87,6 +87,10 @@ export function Step3Lines({ lines, invoiceType, onBack, onNext, isLoading }: St
     }
     if (quantity <= 0) {
       alert("La quantité doit être supérieure à 0");
+      return;
+    }
+    if (!unit || !unit.trim() || unit === "Unité") {
+      alert("Veuillez sélectionner une unité de mesure valide");
       return;
     }
     if (unitPriceHT <= 0) {
@@ -307,12 +311,12 @@ export function Step3Lines({ lines, invoiceType, onBack, onNext, isLoading }: St
                 <Label htmlFor="unit">Unité de mesure *</Label>
                 <Select value={unit} onValueChange={setUnit}>
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Sélectionner une unité" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Unité">Unité</SelectItem>
                     <SelectItem value="Heure">Heure</SelectItem>
                     <SelectItem value="Jour">Jour</SelectItem>
+                    <SelectItem value="Pièce">Pièce</SelectItem>
                     <SelectItem value="Kg">Kilogramme (Kg)</SelectItem>
                     <SelectItem value="Litre">Litre</SelectItem>
                     <SelectItem value="m²">Mètre carré (m²)</SelectItem>

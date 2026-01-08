@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { InvoiceState } from "./invoice-form-new";
 import { Currency, InvoiceType } from "@prisma/client";
+import { UploadButton } from "@/lib/uploadthing";
 
 interface Step1ContextProps {
   invoiceState: InvoiceState;
@@ -35,37 +36,10 @@ export function Step1Context({ invoiceState, onNext, isLoading }: Step1ContextPr
   const [companyFiscalMatricule, setCompanyFiscalMatricule] = React.useState(invoiceState.company.fiscalMatricule);
   const [companyPhone, setCompanyPhone] = React.useState(invoiceState.company.phone);
   const [companyEmail, setCompanyEmail] = React.useState(invoiceState.company.email);
-  
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        alert('Veuillez sélectionner un fichier image');
-        return;
-      }
-      
-      // Validate file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('La taille du fichier ne doit pas dépasser 2 MB');
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCompanyLogo(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const [isUploadingLogo, setIsUploadingLogo] = React.useState(false);
 
   const handleRemoveLogo = () => {
     setCompanyLogo(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   const handleNext = () => {
@@ -231,14 +205,14 @@ export function Step1Context({ invoiceState, onNext, isLoading }: Step1ContextPr
 
         {/* Logo Upload Section */}
         <div className="space-y-2">
-          <Label htmlFor="logo">Logo de l'entreprise (optionnel)</Label>
+          <Label>Logo de l'entreprise (optionnel)</Label>
           <div className="flex items-start gap-4">
             {companyLogo ? (
               <div className="relative">
                 <img 
                   src={companyLogo} 
                   alt="Company Logo" 
-                  className="h-24 w-24 object-contain border rounded-lg p-2 bg-white"
+                  className="h-24 w-24 object-contain border rounded-lg p-2"
                 />
                 <Button
                   type="button"
@@ -256,26 +230,30 @@ export function Step1Context({ invoiceState, onNext, isLoading }: Step1ContextPr
               </div>
             )}
             <div className="flex-1 space-y-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                id="logo"
-                accept="image/*"
-                onChange={handleLogoUpload}
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full"
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {companyLogo ? "Changer le logo" : "Télécharger un logo"}
-              </Button>
-              <p className="text-xs text-muted-foreground">
-                Format: PNG, JPG, SVG. Taille max: 2 MB. Le logo apparaîtra en haut de la facture.
-              </p>
+              {!companyLogo && (
+                <>
+                  <UploadButton
+                  className="border rounded-2xl max-w-max p-2"
+                    endpoint="imageUploader"
+                    onClientUploadComplete={(res) => {
+                      if (res && res[0]) {
+                        setCompanyLogo(res[0].url);
+                        setIsUploadingLogo(false);
+                      }
+                    }}
+                    onUploadError={(error: Error) => {
+                      alert(`Erreur lors du téléchargement: ${error.message}`);
+                      setIsUploadingLogo(false);
+                    }}
+                    onUploadBegin={() => {
+                      setIsUploadingLogo(true);
+                    }}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Format: PNG, JPG. Taille max: 4 MB. Le logo apparaîtra en haut de la facture.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -357,7 +335,7 @@ export function Step1Context({ invoiceState, onNext, isLoading }: Step1ContextPr
           </div>
 
           {/* Taux de change (si devise != TND) */}
-          {currency !== "TND" && (
+          {/* {currency !== "TND" && (
             <div className="space-y-2">
               <Label htmlFor="exchangeRate">Taux de change (1 {currency} = X TND) *</Label>
               <Input
@@ -373,7 +351,7 @@ export function Step1Context({ invoiceState, onNext, isLoading }: Step1ContextPr
                 Taux de conversion pour référence
               </p>
             </div>
-          )}
+          )} */}
         </div>
 
         {/* Info boxes based on selection */}

@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Button } from "@/components/ui/button";
-import { Building2, Mail, Phone, MapPin, CreditCard, Globe, FileText, TrendingUp, Pencil } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, CreditCard, Globe, FileText, TrendingUp, Pencil, X } from "lucide-react";
 import { getClientDetails, ClientDetails } from "../actions";
 import { EditClientDialog } from "./edit-client-dialog";
 
@@ -100,17 +100,28 @@ export function ClientDetailsSheet({
                 Informations complètes du client et statistiques
               </SheetDescription>
             </SheetHeader>
-            {clientDetails && (
+            <div className="flex items-center gap-2">
+              {clientDetails && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setEditDialogOpen(true)}
+                  className="shrink-0"
+                >
+                  <Pencil className="size-4 mr-2" />
+                  Modifier
+                </Button>
+              )}
               <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditDialogOpen(true)}
-                className="shrink-0"
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0"
+                onClick={() => onOpenChange(false)}
               >
-                <Pencil className="size-4 mr-2" />
-                Modifier
+                <X className="h-4 w-4" />
+                <span className="sr-only">Fermer</span>
               </Button>
-            )}
+            </div>
           </div>
         </div>
 

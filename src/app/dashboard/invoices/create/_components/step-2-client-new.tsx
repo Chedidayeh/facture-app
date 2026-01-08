@@ -23,6 +23,7 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
   const [selectedClientId, setSelectedClientId] = React.useState<string>(initialClientId || "");
   const [name, setName] = React.useState(client.name);
   const [address, setAddress] = React.useState(client.address);
+  const [country, setCountry] = React.useState(client.country);
   const [fiscalMatricule, setFiscalMatricule] = React.useState(client.fiscalMatricule);
   const [isProfessional, setIsProfessional] = React.useState(client.isProfessional);
   const [activeClients, setActiveClients] = React.useState<ActiveClientData[]>([]);
@@ -52,6 +53,7 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
     if (selectedClient) {
       setName(selectedClient.nom);
       setAddress(selectedClient.address);
+      setCountry(selectedClient.pays);
       setFiscalMatricule(selectedClient.matriculeFiscal === "-" ? "" : selectedClient.matriculeFiscal);
       setIsProfessional(selectedClient.typeClient === "Professionnel");
     }
@@ -62,6 +64,7 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
       {
         name,
         address,
+        country,
         fiscalMatricule,
         isProfessional,
       },

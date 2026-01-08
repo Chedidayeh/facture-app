@@ -1,4 +1,5 @@
 import { ColumnDef } from "@tanstack/react-table";
+import * as React from "react";
 import { 
   EllipsisVertical, 
   Eye, 
@@ -25,8 +26,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import { InvoiceTableData } from "../actions";
+import { InvoiceTableData, generateInvoicePDF } from "../actions";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
+import { InvoiceDetailsSheet } from "./invoice-details-sheet";
+import { toast } from "sonner";
 
 export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
   {
@@ -154,20 +157,66 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
     id: "actions",
     cell: ({ row }) => {
       const status = row.original.status;
+      const [detailsOpen, setDetailsOpen] = React.useState(false);
+      const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
+
+      const handleGeneratePDF = async () => {
+        setIsGeneratingPDF(true);
+        try {
+          const result = await generateInvoicePDF(row.original.id);
+
+          if (result.success && result.pdfData && result.filename) {
+            // Convert base64 to blob
+            const byteCharacters = atob(result.pdfData);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+              byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: "application/pdf" });
+
+            // Create download link
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = result.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+
+            toast.success("PDF généré avec succès", {
+              description: `Le fichier ${result.filename} a été téléchargé.`,
+            });
+          } else {
+            toast.error("Erreur", {
+              description: result.error || "Impossible de générer le PDF",
+            });
+          }
+        } catch (error) {
+          console.error("PDF generation error:", error);
+          toast.error("Erreur", {
+            description: "Une erreur est survenue lors de la génération du PDF",
+          });
+        } finally {
+          setIsGeneratingPDF(false);
+        }
+      };
       
       return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
-              <EllipsisVertical className="size-4" />
-              <span className="sr-only">Open menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem>
-              <Eye className="mr-2 size-4" />
-              Voir Détails
-            </DropdownMenuItem>
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
+                <EllipsisVertical className="size-4" />
+                <span className="sr-only">Open menu</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={() => setDetailsOpen(true)}>
+                <Eye className="mr-2 size-4" />
+                Voir Détails
+              </DropdownMenuItem>
             
             {/* DRAFT actions */}
             {status === "DRAFT" && (
@@ -195,9 +244,9 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
             {/* VALIDATED actions */}
             {status === "VALIDATED" && (
               <>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
                   <FileText className="mr-2 size-4" />
-                  Générer PDF
+                  {isGeneratingPDF ? "Génération..." : "Générer PDF"}
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <DollarSign className="mr-2 size-4" />
@@ -218,9 +267,9 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
             {/* PAID actions */}
             {status === "PAID" && (
               <>
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
                   <FileText className="mr-2 size-4" />
-                  Générer PDF
+                  {isGeneratingPDF ? "Génération..." : "Générer PDF"}
                 </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Receipt className="mr-2 size-4" />
@@ -235,6 +284,13 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+
+        <InvoiceDetailsSheet
+          open={detailsOpen}
+          onOpenChange={setDetailsOpen}
+          invoiceId={row.original.id}
+        />
+      </>
       );
     },
     enableSorting: false,

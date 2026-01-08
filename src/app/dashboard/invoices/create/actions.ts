@@ -4,6 +4,46 @@ import { prisma } from "@/db";
 import { Currency, InvoiceStatus, InvoiceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+export interface CompanyData {
+  id: string;
+  name: string;
+  address: string;
+  taxNumber: string;
+  phone: string | null;
+  email: string | null;
+  logo: string | null;
+}
+
+export async function getCompanyInfo(): Promise<CompanyData | null> {
+  try {
+    // TODO: Get actual companyId from session/auth
+    const companyId = "temp-company-id";
+
+    const company = await prisma.company.findUnique({
+      where: {
+        id: companyId,
+      },
+    });
+
+    if (!company) {
+      return null;
+    }
+
+    return {
+      id: company.id,
+      name: company.name,
+      address: company.address,
+      taxNumber: company.taxNumber,
+      phone: company.phone,
+      email: company.email,
+      logo: company.logo,
+    };
+  } catch (error) {
+    console.error("Error fetching company info:", error);
+    return null;
+  }
+}
+
 export interface ActiveClientData {
   id: string;
   clientCode: string;
@@ -49,12 +89,46 @@ export async function getActiveClients(): Promise<ActiveClientData[]> {
   }
 }
 
+export async function getNextInvoiceNumber(): Promise<string> {
+  try {
+    // TODO: Get actual companyId from session/auth
+    const companyId = "temp-company-id";
+    const year = new Date().getFullYear();
+
+    const sequence = await prisma.invoiceSequence.findUnique({
+      where: {
+        companyId_year: {
+          companyId: companyId,
+          year: year,
+        },
+      },
+    });
+
+    const nextNumber = sequence ? sequence.lastNumber + 1 : 1;
+    return `FAC-${year}-${String(nextNumber).padStart(5, "0")}`;
+  } catch (error) {
+    console.error("Error fetching next invoice number:", error);
+    const year = new Date().getFullYear();
+    return `FAC-${year}-00001`;
+  }
+}
+
 export interface SaveInvoiceData {
   // Context
   invoiceDate: Date;
   invoiceType: InvoiceType;
   currency: Currency;
   exchangeRate?: number;
+  
+  // Company info
+  company: {
+    name: string;
+    address: string;
+    fiscalMatricule: string;
+    phone: string;
+    email: string;
+  };
+  companyLogo?: string | null;
   
   // Client
   clientId: string;
@@ -125,7 +199,31 @@ export async function saveInvoice(
 
     // Use transaction for atomicity
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Find or create exercise for this year
+      // 1. Update or create company with the provided information
+      const company = await tx.company.upsert({
+        where: {
+          id: companyId,
+        },
+        create: {
+          id: companyId,
+          name: data.company.name,
+          address: data.company.address,
+          taxNumber: data.company.fiscalMatricule,
+          phone: data.company.phone,
+          email: data.company.email,
+          logo: data.companyLogo || null,
+        },
+        update: {
+          name: data.company.name,
+          address: data.company.address,
+          taxNumber: data.company.fiscalMatricule,
+          phone: data.company.phone,
+          email: data.company.email,
+          logo: data.companyLogo || null,
+        },
+      });
+
+      // 2. Find or create exercise for this year
       let exercise = await tx.exercise.findUnique({
         where: {
           companyId_year: {
@@ -150,7 +248,7 @@ export async function saveInvoice(
         throw new Error(`L'exercice ${exerciseYear} est fermé. Impossible de valider la facture.`);
       }
 
-      // 2. Get or create invoice sequence for this year
+      // 3. Get or create invoice sequence for this year
       let sequence = await tx.invoiceSequence.findUnique({
         where: {
           companyId_year: {

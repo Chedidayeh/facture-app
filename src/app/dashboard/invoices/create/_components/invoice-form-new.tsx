@@ -11,7 +11,7 @@ import { Step2Client } from "./step-2-client-new";
 import { Step3Lines } from "./step-3-lines-new";
 import { Step4Suspension } from "./step-4-suspension-new";
 import { Step5Review } from "./step-5-review-new";
-import { saveInvoice, SaveInvoiceData } from "../actions";
+import { saveInvoice, SaveInvoiceData, getCompanyInfo, getNextInvoiceNumber } from "../actions";
 import { Currency, InvoiceType } from "@prisma/client";
 
 
@@ -31,6 +31,7 @@ export interface LineItem {
 export interface ClientInfo {
   name: string;
   address: string;
+  country: string;
   fiscalMatricule: string;
   isProfessional: boolean;
 }
@@ -80,6 +81,7 @@ export function InvoiceForm({ companyId }: InvoiceFormProps) {
   
   // Step state
   const [currentStep, setCurrentStep] = React.useState<Step>(1);
+  const [isLoadingCompany, setIsLoadingCompany] = React.useState(true);
 
   // Unified invoice state
   const [invoiceState, setInvoiceState] = React.useState<InvoiceState>({
@@ -100,6 +102,7 @@ export function InvoiceForm({ companyId }: InvoiceFormProps) {
       address: "",
       fiscalMatricule: "",
       isProfessional: false,
+      country: "",
     },
     clientId: "",
     lines: [],
@@ -109,6 +112,37 @@ export function InvoiceForm({ companyId }: InvoiceFormProps) {
     invoiceNumber: `FAC-${new Date().getFullYear()}-00001`,
     exerciseYear: new Date().getFullYear(),
   });
+
+  // Load company info on mount
+  React.useEffect(() => {
+    const loadCompanyInfo = async () => {
+      setIsLoadingCompany(true);
+      const companyData = await getCompanyInfo();
+      if (companyData) {
+        setInvoiceState(prev => ({
+          ...prev,
+          companyLogo: companyData.logo,
+          company: {
+            name: companyData.name,
+            address: companyData.address,
+            fiscalMatricule: companyData.taxNumber,
+            phone: companyData.phone || "",
+            email: companyData.email || "",
+          },
+        }));
+      }
+      
+      // Also fetch the next invoice number
+      const nextInvoiceNumber = await getNextInvoiceNumber();
+      setInvoiceState(prev => ({
+        ...prev,
+        invoiceNumber: nextInvoiceNumber,
+      }));
+      
+      setIsLoadingCompany(false);
+    };
+    loadCompanyInfo();
+  }, []);
 
   // Loading states
   const [isSaving, setIsSaving] = React.useState(false);
@@ -219,6 +253,8 @@ export function InvoiceForm({ companyId }: InvoiceFormProps) {
         invoiceType: invoiceState.invoiceType as any,
         currency: invoiceState.currency as any,
         exchangeRate: invoiceState.currency === "TND" ? undefined : invoiceState.exchangeRate,
+        company: invoiceState.company,
+        companyLogo: invoiceState.companyLogo,
         clientId: invoiceState.clientId,
         lines: invoiceState.lines.map(line => ({
           description: line.description,
@@ -290,6 +326,8 @@ export function InvoiceForm({ companyId }: InvoiceFormProps) {
         invoiceType: invoiceState.invoiceType as any,
         currency: invoiceState.currency as any,
         exchangeRate: invoiceState.currency === "TND" ? undefined : invoiceState.exchangeRate,
+        company: invoiceState.company,
+        companyLogo: invoiceState.companyLogo,
         clientId: invoiceState.clientId,
         lines: invoiceState.lines.map(line => ({
           description: line.description,
