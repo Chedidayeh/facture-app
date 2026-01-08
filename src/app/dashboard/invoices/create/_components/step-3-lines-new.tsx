@@ -11,7 +11,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { LineItem, InvoiceType } from "./invoice-form-new";
+import { LineItem } from "./invoice-form-new";
+import { InvoiceType } from "@prisma/client";
 
 interface Step3LinesProps {
   lines: LineItem[];

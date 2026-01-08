@@ -14,7 +14,8 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { InvoiceState, InvoiceType, Currency } from "./invoice-form-new";
+import { InvoiceState } from "./invoice-form-new";
+import { Currency, InvoiceType } from "@prisma/client";
 
 interface Step1ContextProps {
   invoiceState: InvoiceState;

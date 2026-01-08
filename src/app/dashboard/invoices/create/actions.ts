@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/db";
-import { Currency, InvoiceStatus, InvoiceType } from "@/lib/types";
+import { Currency, InvoiceStatus, InvoiceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 export interface ActiveClientData {

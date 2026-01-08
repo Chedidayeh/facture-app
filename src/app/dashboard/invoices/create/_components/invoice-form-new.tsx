@@ -12,9 +12,8 @@ import { Step3Lines } from "./step-3-lines-new";
 import { Step4Suspension } from "./step-4-suspension-new";
 import { Step5Review } from "./step-5-review-new";
 import { saveInvoice, SaveInvoiceData } from "../actions";
+import { Currency, InvoiceType } from "@prisma/client";
 
-export type InvoiceType = "LOCAL" | "EXPORTATION" | "SUSPENSION";
-export type Currency = "TND" | "EUR" | "USD";
 
 export interface LineItem {
   id: string;

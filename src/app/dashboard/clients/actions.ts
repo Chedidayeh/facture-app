@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/db";
-import { ClientStatus, ClientType, Currency, InvoiceType } from "@/lib/types";
+import { ClientStatus, ClientType, Currency, InvoiceType } from "@prisma/client";
 
 export interface ClientTableData {
   id: string;

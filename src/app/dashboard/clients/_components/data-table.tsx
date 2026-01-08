@@ -13,7 +13,7 @@ import { DataTable as DataTableNew } from "@/components/data-table/data-table";
 import { ClientTableData } from "../actions";
 import { Badge } from "@/components/ui/badge";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
-import { ClientStatus } from "@/lib/types";
+import { ClientStatus } from "@prisma/client";
 
 export function DataTable({ data: initialData }: { data: ClientTableData[] }) {
   const [data, setData] = React.useState(() => initialData);
