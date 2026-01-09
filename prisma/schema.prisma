@@ -28,10 +28,15 @@ enum InvoiceType {
   SUSPENSION
 }
 
+enum DocumentType {
+  FACTURE
+  AVOIR
+}
+
 enum InvoiceStatus {
-  DRAFT
-  VALIDATED
-  PAID
+  BROUILLON
+  VALIDÉ
+  PAYÉ
 }
 
 enum Currency {
@@ -144,12 +149,13 @@ model Client {
 model Invoice {
   id             String @id @default(uuid())
 
-  invoiceNumber  String   // FAC-2026-00001
+  invoiceNumber  String   // FAC-2026-00001 or AV-2026-00001
   date           DateTime
   exerciseYear   Int
 
+  documentType   DocumentType @default(FACTURE)
   type           InvoiceType
-  status         InvoiceStatus @default(DRAFT)
+  status         InvoiceStatus @default(BROUILLON)
 
   currency       Currency
   exchangeRate   Decimal? @db.Decimal(10, 4) // obligatoire si currency != TND
@@ -158,6 +164,16 @@ model Invoice {
   totalTVA       Decimal @db.Decimal(15, 3)
   stampDuty      Decimal @db.Decimal(15, 3)
   totalTTC       Decimal @db.Decimal(15, 3)
+
+  // Credit note fields
+  parentInvoiceId String?
+  parentInvoice   Invoice? @relation("CreditNotes", fields: [parentInvoiceId], references: [id])
+  creditNotes     Invoice[] @relation("CreditNotes")
+
+  // Rectificative invoice fields
+  rectifiesInvoiceId String?
+  rectifiesInvoice   Invoice? @relation("RectificativeInvoices", fields: [rectifiesInvoiceId], references: [id])
+  rectificativeInvoices Invoice[] @relation("RectificativeInvoices")
 
   // Suspension TVA fields
   suspensionAuthNumber String?
@@ -187,6 +203,9 @@ model Invoice {
   @@index([exerciseYear])
   @@index([status])
   @@index([clientId])
+  @@index([parentInvoiceId])
+  @@index([documentType])
+  @@index([rectifiesInvoiceId])
 }
 
 //////////////////////////
@@ -225,7 +244,7 @@ model Payment {
 
   amount     Decimal @db.Decimal(15, 3)
   method     String
-  paidAt     DateTime
+  PAYÉAt     DateTime
 
   createdAt  DateTime @default(now())
 

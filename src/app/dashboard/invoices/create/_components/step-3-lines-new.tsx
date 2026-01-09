@@ -299,8 +299,7 @@ export function Step3Lines({ lines, invoiceType, onBack, onNext, isLoading }: St
                 <Input
                   id="quantity"
                   type="number"
-                  min="0.001"
-                  step="0.001"
+                  min="1"
                   value={quantity}
                   onChange={(e) => setQuantity(parseFloat(e.target.value) || 0)}
                 />

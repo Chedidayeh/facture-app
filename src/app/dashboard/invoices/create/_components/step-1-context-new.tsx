@@ -17,6 +17,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { InvoiceState } from "./invoice-form-new";
 import { Currency, InvoiceType } from "@prisma/client";
 import { UploadButton } from "@/lib/uploadthing";
+import { getCompanyInfo } from "../actions";
 
 interface Step1ContextProps {
   invoiceState: InvoiceState;
@@ -37,6 +38,53 @@ export function Step1Context({ invoiceState, onNext, isLoading }: Step1ContextPr
   const [companyPhone, setCompanyPhone] = React.useState(invoiceState.company.phone);
   const [companyEmail, setCompanyEmail] = React.useState(invoiceState.company.email);
   const [isUploadingLogo, setIsUploadingLogo] = React.useState(false);
+  const [isLoadingCompany, setIsLoadingCompany] = React.useState(true);
+
+  // Fetch company data on mount
+  React.useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const companyData = await getCompanyInfo();
+        if (companyData) {
+          setCompanyName(companyData.name);
+          setCompanyAddress(companyData.address);
+          setCompanyFiscalMatricule(companyData.taxNumber);
+          setCompanyPhone(companyData.phone || "");
+          setCompanyEmail(companyData.email || "");
+          setCompanyLogo(companyData.logo);
+        }
+      } catch (error) {
+        console.error("Error fetching company data:", error);
+      } finally {
+        setIsLoadingCompany(false);
+      }
+    };
+
+    fetchCompanyData();
+  }, []);
+
+  // Fetch company data on mount
+  React.useEffect(() => {
+    const fetchCompanyData = async () => {
+      try {
+        const companyData = await getCompanyInfo();
+        if (companyData) {
+          setCompanyName(companyData.name);
+          setCompanyAddress(companyData.address);
+          setCompanyFiscalMatricule(companyData.taxNumber);
+          setCompanyPhone(companyData.phone || "");
+          setCompanyEmail(companyData.email || "");
+          setCompanyLogo(companyData.logo);
+        }
+      } catch (error) {
+        console.error("Error fetching company data:", error);
+      } finally {
+        setIsLoadingCompany(false);
+      }
+    };
+
+    fetchCompanyData();
+  }, []);
 
   const handleRemoveLogo = () => {
     setCompanyLogo(null);

@@ -102,7 +102,7 @@ export function TableCellViewer({ item }: { item: z.infer<typeof sectionSchema> 
               </div>
               <div className="flex flex-col gap-3">
                 <Label htmlFor="status">Statut</Label>
-                <Input id="status" value={item.status === "PAID" ? "Payée" : item.status === "VALIDATED" ? "Validée" : "Brouillon"} readOnly className="bg-muted" />
+                <Input id="status" value={item.status === "PAYÉ" ? "Payée" : item.status === "VALIDÉ" ? "Validée" : "Brouillon"} readOnly className="bg-muted" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -6,7 +6,7 @@ export const sectionSchema = z.object({
   date: z.string().datetime(),
   exerciseYear: z.number().int(),
   type: z.enum(["LOCAL", "EXPORT", "SUSPENSION"]),
-  status: z.enum(["DRAFT", "VALIDATED", "PAID"]),
+  status: z.enum(["BROUILLON", "VALIDÉ", "PAYÉ"]),
   currency: z.enum(["TND", "EUR", "USD"]),
   exchangeRate: z.number().positive().optional(),
   totalHT: z.number().nonnegative(),

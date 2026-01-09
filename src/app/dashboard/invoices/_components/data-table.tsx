@@ -43,9 +43,9 @@ export function DataTable({ data: initialData }: { data: InvoiceTableData[] }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Toutes les Factures ({data.length})</SelectItem>
-            <SelectItem value="DRAFT">Brouillon ({getStatusCount("DRAFT")})</SelectItem>
-            <SelectItem value="VALIDATED">Validée ({getStatusCount("VALIDATED")})</SelectItem>
-            <SelectItem value="PAID">Payée ({getStatusCount("PAID")})</SelectItem>
+            <SelectItem value="BROUILLON">Brouillon ({getStatusCount("BROUILLON")})</SelectItem>
+            <SelectItem value="VALIDÉ">Validée ({getStatusCount("VALIDÉ")})</SelectItem>
+            <SelectItem value="PAYÉ">Payée ({getStatusCount("PAYÉ")})</SelectItem>
           </SelectContent>
         </Select>
         <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
@@ -53,17 +53,17 @@ export function DataTable({ data: initialData }: { data: InvoiceTableData[] }) {
             Toutes les Factures
             <Badge variant="outline" className="ml-1">{data.length}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="DRAFT" className="gap-2">
+          <TabsTrigger value="BROUILLON" className="gap-2">
             Brouillon
-            <Badge variant="outline" className="ml-1">{getStatusCount("DRAFT")}</Badge>
+            <Badge variant="outline" className="ml-1">{getStatusCount("BROUILLON")}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="VALIDATED" className="gap-2">
+          <TabsTrigger value="VALIDÉ" className="gap-2">
             Validée
-            <Badge variant="outline" className="ml-1">{getStatusCount("VALIDATED")}</Badge>
+            <Badge variant="outline" className="ml-1">{getStatusCount("VALIDÉ")}</Badge>
           </TabsTrigger>
-          <TabsTrigger value="PAID" className="gap-2">
+          <TabsTrigger value="PAYÉ" className="gap-2">
             Payée
-            <Badge variant="outline" className="ml-1">{getStatusCount("PAID")}</Badge>
+            <Badge variant="outline" className="ml-1">{getStatusCount("PAYÉ")}</Badge>
           </TabsTrigger>
         </TabsList>
         <div className="flex items-center gap-2">
@@ -76,19 +76,19 @@ export function DataTable({ data: initialData }: { data: InvoiceTableData[] }) {
         </div>
         <DataTablePagination table={table} />
       </TabsContent>
-      <TabsContent value="DRAFT" className="relative flex flex-col gap-4 overflow-auto">
+      <TabsContent value="BROUILLON" className="relative flex flex-col gap-4 overflow-auto">
         <div className="overflow-hidden rounded-lg border">
           <DataTableNew dndEnabled table={table} columns={columns} onReorder={setData} />
         </div>
         <DataTablePagination table={table} />
       </TabsContent>
-      <TabsContent value="VALIDATED" className="relative flex flex-col gap-4 overflow-auto">
+      <TabsContent value="VALIDÉ" className="relative flex flex-col gap-4 overflow-auto">
         <div className="overflow-hidden rounded-lg border">
           <DataTableNew dndEnabled table={table} columns={columns} onReorder={setData} />
         </div>
         <DataTablePagination table={table} />
       </TabsContent>
-      <TabsContent value="PAID" className="relative flex flex-col gap-4 overflow-auto">
+      <TabsContent value="PAYÉ" className="relative flex flex-col gap-4 overflow-auto">
         <div className="overflow-hidden rounded-lg border">
           <DataTableNew dndEnabled table={table} columns={columns} onReorder={setData} />
         </div>

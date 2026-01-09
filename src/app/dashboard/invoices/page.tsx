@@ -6,7 +6,6 @@ import { getInvoices } from "./actions";
 
 export default async function Page() {
   const invoices = await getInvoices();
-  console.log("Invoices loaded for dashboard:", invoices);
 
   return (
     <div className="@container/main flex flex-col gap-4 md:gap-6">

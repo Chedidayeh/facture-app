@@ -157,6 +157,9 @@ export interface SaveInvoiceData {
   suspensionValidUntil?: Date;
   purchaseOrderNumber?: string;
   
+  // Rectificative invoice (optional)
+  rectifiesInvoiceId?: string;
+  
   // Status
   status: InvoiceStatus;
 }
@@ -244,7 +247,7 @@ export async function saveInvoice(
       }
 
       // Check if exercise is open
-      if (!exercise.isOpen && data.status === "VALIDATED") {
+      if (!exercise.isOpen && data.status === "VALIDÉ") {
         throw new Error(`L'exercice ${exerciseYear} est fermé. Impossible de valider la facture.`);
       }
 
@@ -301,10 +304,11 @@ export async function saveInvoice(
           suspensionAuthNumber: data.suspensionAuthNumber || null,
           suspensionValidUntil: data.suspensionValidUntil || null,
           purchaseOrderNumber: data.purchaseOrderNumber || null,
+          rectifiesInvoiceId: data.rectifiesInvoiceId || null,
           clientId: data.clientId,
           companyId: companyId,
           exerciseId: exercise.id,
-          validatedAt: data.status === "VALIDATED" ? new Date() : null,
+          validatedAt: data.status === "VALIDÉ" ? new Date() : null,
         },
       });
 
@@ -343,6 +347,266 @@ export async function saveInvoice(
     return { 
       success: false, 
       error: error.message || "Erreur lors de l'enregistrement de la facture" 
+    };
+  }
+}
+
+export async function updateInvoice(
+  invoiceId: string,
+  data: SaveInvoiceData
+): Promise<{ success: boolean; error?: string; invoiceNumber?: string }> {
+  try {
+    // TODO: Get actual companyId from session/auth
+    const companyId = "temp-company-id";
+
+    // Validate required fields
+    if (!data.clientId) {
+      return { success: false, error: "Client requis" };
+    }
+
+    if (data.lines.length === 0) {
+      return { success: false, error: "Au moins une ligne est requise" };
+    }
+
+    // Validate suspension fields if type is SUSPENSION
+    if (data.invoiceType === "SUSPENSION") {
+      if (!data.suspensionAuthNumber || !data.suspensionValidUntil || !data.purchaseOrderNumber) {
+        return { 
+          success: false, 
+          error: "Les informations de suspension sont obligatoires pour ce type de facture" 
+        };
+      }
+    }
+
+    // Validate exchange rate for non-TND currencies
+    if (data.currency !== "TND" && (!data.exchangeRate || data.exchangeRate <= 0)) {
+      return { 
+        success: false, 
+        error: "Le taux de change est obligatoire pour les devises autres que TND" 
+      };
+    }
+
+    // Use transaction for atomicity
+    const result = await prisma.$transaction(async (tx) => {
+      // Check if invoice exists and is draft
+      const existingInvoice = await tx.invoice.findUnique({
+        where: { id: invoiceId },
+      });
+
+      if (!existingInvoice) {
+        throw new Error("Facture introuvable");
+      }
+
+      if (existingInvoice.status !== "BROUILLON") {
+        throw new Error("Seules les factures brouillon peuvent être modifiées");
+      }
+
+      // Update company
+      await tx.company.update({
+        where: { id: companyId },
+        data: {
+          name: data.company.name,
+          address: data.company.address,
+          taxNumber: data.company.fiscalMatricule,
+          phone: data.company.phone,
+          email: data.company.email,
+          logo: data.companyLogo || null,
+        },
+      });
+
+      // Delete existing invoice items
+      await tx.invoiceItem.deleteMany({
+        where: { invoiceId: invoiceId },
+      });
+
+      // Update invoice
+      const invoice = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          date: data.invoiceDate,
+          type: data.invoiceType,
+          currency: data.currency,
+          exchangeRate: data.currency === "TND" ? null : data.exchangeRate,
+          clientId: data.clientId,
+          companyId: companyId,
+          totalHT: data.totalHT,
+          totalTVA: data.totalTVA,
+          stampDuty: data.stampDuty,
+          totalTTC: data.totalTTC,
+          suspensionAuthNumber: data.suspensionAuthNumber || null,
+          suspensionValidUntil: data.suspensionValidUntil || null,
+          purchaseOrderNumber: data.purchaseOrderNumber || null,
+          status: data.status,
+          validatedAt: data.status === "VALIDÉ" ? new Date() : null,
+        },
+      });
+
+      // Create new invoice items
+      await tx.invoiceItem.createMany({
+        data: data.lines.map((line) => ({
+          invoiceId: invoice.id,
+          description: line.description,
+          quantity: line.quantity,
+          unit: line.unit,
+          unitPriceHT: line.unitPriceHT,
+          discount: line.discount,
+          vatRate: line.vatRate,
+          lineTotalHT: line.lineTotalHT,
+          lineTVA: line.lineTVA,
+          lineTotalTTC: line.lineTotalTTC,
+        })),
+      });
+
+      return {
+        invoiceNumber: invoice.invoiceNumber,
+      };
+    });
+
+    // Revalidate the invoices list page
+    revalidatePath("/dashboard/invoices");
+
+    return { 
+      success: true, 
+      invoiceNumber: result.invoiceNumber,
+    };
+  } catch (error: any) {
+    console.error("Error updating invoice:", error);
+    return { 
+      success: false, 
+      error: error.message || "Erreur lors de la mise à jour de la facture" 
+    };
+  }
+}
+
+export interface InvoiceEditData {
+  id: string;
+  invoiceNumber: string;
+  invoiceDate: Date;
+  exerciseYear: number;
+  documentType: string;
+  type: InvoiceType;
+  currency: Currency;
+  exchangeRate: number;
+  status: string;
+  companyLogo: string | null;
+  company: {
+    name: string;
+    address: string;
+    fiscalMatricule: string;
+    phone: string;
+    email: string;
+  };
+  client: {
+    id: string;
+    name: string;
+    address: string;
+    fiscalMatricule: string;
+    isProfessional: boolean;
+    country: string;
+  };
+  lines: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPriceHT: number;
+    discount: number;
+    vatRate: number;
+    lineTotalHT: number;
+    lineTVA: number;
+    lineTotalTTC: number;
+  }>;
+  suspensionAuthNumber: string | null;
+  suspensionValidUntil: Date | null;
+  purchaseOrderNumber: string | null;
+}
+
+export async function getInvoiceForEdit(
+  invoiceId: string
+): Promise<{ success: boolean; data?: InvoiceEditData; error?: string }> {
+  try {
+    const invoice = await prisma.invoice.findUnique({
+      where: {
+        id: invoiceId,
+      },
+      include: {
+        client: true,
+        company: true,
+        items: {
+          orderBy: {
+            id: 'asc',
+          },
+        },
+      },
+    });
+
+    if (!invoice) {
+      return {
+        success: false,
+        error: "Facture introuvable",
+      };
+    }
+
+    // Only allow editing draft invoices
+    if (invoice.status !== "BROUILLON") {
+      return {
+        success: false,
+        error: "Seules les factures brouillon peuvent être modifiées",
+      };
+    }
+
+    const editData: InvoiceEditData = {
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      invoiceDate: invoice.date,
+      exerciseYear: invoice.exerciseYear,
+      documentType: invoice.documentType,
+      type: invoice.type,
+      currency: invoice.currency,
+      exchangeRate: invoice.exchangeRate ? Number(invoice.exchangeRate) : 1,
+      status: invoice.status,
+      companyLogo: invoice.company.logo,
+      company: {
+        name: invoice.company.name,
+        address: invoice.company.address,
+        fiscalMatricule: invoice.company.taxNumber,
+        phone: invoice.company.phone || "",
+        email: invoice.company.email || "",
+      },
+      client: {
+        id: invoice.client.id,
+        name: invoice.client.name,
+        address: invoice.client.address,
+        fiscalMatricule: invoice.client.taxNumber || "",
+        isProfessional: invoice.client.type === "PROFESSIONNEL",
+        country: invoice.client.country,
+      },
+      lines: invoice.items.map((item) => ({
+        id: item.id,
+        description: item.description,
+        quantity: Number(item.quantity),
+        unit: item.unit,
+        unitPriceHT: Number(item.unitPriceHT),
+        discount: Number(item.discount),
+        vatRate: Number(item.vatRate),
+        lineTotalHT: Number(item.lineTotalHT),
+        lineTVA: Number(item.lineTVA),
+        lineTotalTTC: Number(item.lineTotalTTC),
+      })),
+      suspensionAuthNumber: invoice.suspensionAuthNumber,
+      suspensionValidUntil: invoice.suspensionValidUntil,
+      purchaseOrderNumber: invoice.purchaseOrderNumber,
+    };
+
+    return {
+      success: true,
+      data: editData,
+    };
+  } catch (error) {
+    console.error("Error fetching invoice for edit:", error);
+    return {
+      success: false,
+      error: "Erreur lors de la récupération de la facture",
     };
   }
 }

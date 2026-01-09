@@ -24,6 +24,9 @@ import {
   Eye,
   Receipt,
   X,
+  AlertCircle,
+  ArrowRight,
+  FileCheck,
 } from "lucide-react";
 import { getInvoiceDetails, InvoiceDetails } from "../actions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -77,11 +80,11 @@ export function InvoiceDetailsSheet({
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case "DRAFT":
+      case "BROUILLON":
         return "Brouillon";
-      case "VALIDATED":
+      case "VALIDÉ":
         return "Validée";
-      case "PAID":
+      case "PAYÉ":
         return "Payée";
       default:
         return status;
@@ -90,10 +93,32 @@ export function InvoiceDetailsSheet({
 
   const getStatusVariant = (status: string) => {
     switch (status) {
-      case "PAID":
+      case "PAYÉ":
         return "default";
-      case "VALIDATED":
+      case "VALIDÉ":
         return "secondary";
+      default:
+        return "outline";
+    }
+  };
+
+  const getDocumentTypeLabel = (documentType: string) => {
+    switch (documentType) {
+      case "FACTURE":
+        return "Facture";
+      case "AVOIR":
+        return "Avoir";
+      default:
+        return documentType;
+    }
+  };
+
+  const getDocumentTypeVariant = (documentType: string): "default" | "destructive" | "outline" | "secondary" => {
+    switch (documentType) {
+      case "FACTURE":
+        return "default";
+      case "AVOIR":
+        return "destructive";
       default:
         return "outline";
     }
@@ -155,17 +180,21 @@ export function InvoiceDetailsSheet({
                         Exercice {invoiceDetails.exerciseYear}
                       </p>
                     </div>
-                    <Badge
-                      variant={getStatusVariant(invoiceDetails.status)}
-                      className="shrink-0"
-                    >
-                      {getStatusLabel(invoiceDetails.status)}
-                    </Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge
+                        variant={getDocumentTypeVariant(invoiceDetails.documentType)}
+                      >
+                        {getDocumentTypeLabel(invoiceDetails.documentType)}
+                      </Badge>
+                      <Badge variant={getStatusVariant(invoiceDetails.status)}>
+                        {getStatusLabel(invoiceDetails.status)}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
 
                 {/* Key Info Cards */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-4 gap-4">
                   <Card className="p-4 space-y-2">
                     <div className="flex items-center gap-2 text-muted-foreground">
                       <Calendar className="size-4" />
@@ -200,6 +229,15 @@ export function InvoiceDetailsSheet({
                           Taux: {invoiceDetails.exchangeRate.toFixed(4)}
                         </p>
                       )}
+                  </Card>
+                  <Card className="p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <FileCheck className="size-4" />
+                      <p className="text-xs font-medium">Document</p>
+                    </div>
+                    <Badge variant={getDocumentTypeVariant(invoiceDetails.documentType)}>
+                      {getDocumentTypeLabel(invoiceDetails.documentType)}
+                    </Badge>
                   </Card>
                 </div>
 
@@ -253,6 +291,172 @@ export function InvoiceDetailsSheet({
                     </div>
                   </div>
                 </div>
+
+                {/* Document Relations */}
+                {(invoiceDetails.parentInvoice ||
+                  invoiceDetails.creditNotes.length > 0 ||
+                  invoiceDetails.rectifiesInvoice ||
+                  invoiceDetails.rectificativeInvoices.length > 0) && (
+                  <>
+                    <Separator />
+                    <div className="space-y-5">
+                      <h4 className="font-semibold text-base flex items-center gap-2">
+                        <AlertCircle className="size-5" />
+                        Relations de Document
+                      </h4>
+
+                      {/* Parent Invoice (for Credit Notes) */}
+                      {invoiceDetails.parentInvoice && (
+                        <Card className="p-4 border-orange-400">
+                          <div className="flex items-start gap-3">
+                            <div className="rounded-full bg-orange-100 p-2">
+                              <FileText className="size-4 text-orange-400" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-orange-400 mb-1">
+                                Avoir créé pour la facture
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <code className="text-sm font-mono font-semibold">
+                                  {invoiceDetails.parentInvoice.invoiceNumber}
+                                </code>
+                                <span className="text-xs text-muted-foreground">
+                                  du{" "}
+                                  {format(
+                                    new Date(invoiceDetails.parentInvoice.date),
+                                    "dd/MM/yyyy",
+                                    { locale: fr }
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      )}
+
+                      {/* Credit Notes */}
+                      {invoiceDetails.creditNotes.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Avoirs créés ({invoiceDetails.creditNotes.length})
+                          </p>
+                          <div className="space-y-2">
+                            {invoiceDetails.creditNotes.map((creditNote) => (
+                              <Card
+                                key={creditNote.id}
+                                className="p-3 border-red-200"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <Badge variant="destructive" className="font-mono">
+                                      {creditNote.invoiceNumber}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">
+                                      {format(
+                                        new Date(creditNote.date),
+                                        "dd/MM/yyyy",
+                                        { locale: fr }
+                                      )}
+                                    </span>
+                                    <Badge
+                                      variant={getStatusVariant(creditNote.status)}
+                                      className="text-xs"
+                                    >
+                                      {getStatusLabel(creditNote.status)}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm font-semibold tabular-nums">
+                                    {creditNote.totalTTC.toFixed(2)}{" "}
+                                    {invoiceDetails.currency}
+                                  </p>
+                                </div>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Rectifies Invoice */}
+                      {invoiceDetails.rectifiesInvoice && (
+                        <Card className="p-4 border-blue-500">
+                          <div className="flex items-start gap-3">
+                            <div className="rounded-full bg-blue-100 p-2">
+                              <FileText className="size-4 text-blue-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-blue-500 mb-1">
+                                Facture rectificative de
+                              </p>
+                              <div className="flex items-center gap-2">
+                                <code className="text-sm font-mono font-semibold">
+                                  {invoiceDetails.rectifiesInvoice.invoiceNumber}
+                                </code>
+                                <span className="text-xs text-muted-foreground">
+                                  du{" "}
+                                  {format(
+                                    new Date(invoiceDetails.rectifiesInvoice.date),
+                                    "dd/MM/yyyy",
+                                    { locale: fr }
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      )}
+
+                      {/* Rectificative Invoices */}
+                      {invoiceDetails.rectificativeInvoices.length > 0 && (
+                        <div className="space-y-3">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Factures rectificatives créées (
+                            {invoiceDetails.rectificativeInvoices.length})
+                          </p>
+                          <div className="space-y-2">
+                            {invoiceDetails.rectificativeInvoices.map(
+                              (rectificative) => (
+                                <Card
+                                  key={rectificative.id}
+                                  className="p-3 border-blue-200"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-3">
+                                      <Badge
+                                        variant="secondary"
+                                        className="font-mono"
+                                      >
+                                        {rectificative.invoiceNumber}
+                                      </Badge>
+                                      <span className="text-xs text-muted-foreground">
+                                        {format(
+                                          new Date(rectificative.date),
+                                          "dd/MM/yyyy",
+                                          { locale: fr }
+                                        )}
+                                      </span>
+                                      <Badge
+                                        variant={getStatusVariant(
+                                          rectificative.status
+                                        )}
+                                        className="text-xs"
+                                      >
+                                        {getStatusLabel(rectificative.status)}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-sm font-semibold tabular-nums">
+                                      {rectificative.totalTTC.toFixed(2)}{" "}
+                                      {invoiceDetails.currency}
+                                    </p>
+                                  </div>
+                                </Card>
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 
@@ -427,7 +631,7 @@ export function InvoiceDetailsSheet({
                   invoiceDetails.suspensionAuthNumber && (
                     <>
                       <Separator />
-                      <div className="rounded-lg border border-yellow-200 bg-yellow-50/50 p-4 space-y-2">
+                      <div className="rounded-lg border border-yellow-200 p-4 space-y-2">
                         <h4 className="font-semibold text-sm">
                           Informations Suspension TVA
                         </h4>
@@ -527,9 +731,9 @@ export function InvoiceDetailsSheet({
                       </div>
                     )}
 
-                    {/* INVOICE Title */}
+                    {/* INVOICE/AVOIR Title */}
                     <h1 className="text-3xl font-bold tracking-wider">
-                      FACTURE
+                      {invoiceDetails.documentType === "AVOIR" ? "AVOIR" : "FACTURE"}
                     </h1>
                   </div>
 

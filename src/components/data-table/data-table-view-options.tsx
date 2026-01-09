@@ -18,21 +18,34 @@ interface DataTableViewOptionsProps<TData> {
   table: Table<TData>;
 }
 
+// Mapping des noms de colonnes en français
+const columnNameMap: Record<string, string> = {
+  invoiceNumber: "N° Facture",
+  date: "Date",
+  clientName: "Client",
+  documentType: "Document",
+  type: "Type",
+  currency: "Devise",
+  totalTTC: "Total TTC",
+  status: "Statut",
+  payment: "Paiement",
+};
+
 export function DataTableViewOptions<TData>({ table }: DataTableViewOptionsProps<TData>) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" className="ml-auto hidden h-8 lg:flex">
           <Settings2 />
-          View
+          Affichage
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[150px]">
-        <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-[180px]">
+        <DropdownMenuLabel>Afficher les colonnes</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {table
           .getAllColumns()
-          .filter((column) => typeof column.accessorFn !== "undefined" && column.getCanHide())
+          .filter((column) => column.getCanHide())
           .map((column) => {
             return (
               <DropdownMenuCheckboxItem
@@ -41,7 +54,7 @@ export function DataTableViewOptions<TData>({ table }: DataTableViewOptionsProps
                 checked={column.getIsVisible()}
                 onCheckedChange={(value) => column.toggleVisibility(!!value)}
               >
-                {column.id}
+                {columnNameMap[column.id] || column.id}
               </DropdownMenuCheckboxItem>
             );
           })}
