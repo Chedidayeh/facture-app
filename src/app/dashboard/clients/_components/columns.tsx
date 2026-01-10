@@ -70,7 +70,7 @@ export const dashboardColumns: ColumnDef<ClientTableData>[] = [
   },
   {
     accessorKey: "matriculeFiscal",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Matricule Fiscal" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="CIN /Matricule Fiscal" />,
     cell: ({ row }) => (
       <div className="font-mono text-sm">{row.original.matriculeFiscal}</div>
     ),

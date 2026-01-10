@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Building2, Mail, Phone, MapPin, CreditCard, Globe, FileText, TrendingUp, Pencil, X } from "lucide-react";
 import { getClientDetails, ClientDetails } from "../actions";
 import { EditClientDialog } from "./edit-client-dialog";
+import { ClientType } from "@prisma/client";
 
 interface ClientDetailsSheetProps {
   open: boolean;
@@ -59,9 +60,6 @@ export function ClientDetailsSheet({
     }
   }
 
-  const getTypeLabel = (type: string) => {
-    return type === "PROFESSIONNEL" ? "Professionnel" : "Particulier";
-  };
 
   const getInvoiceTypeLabel = (type: string) => {
     switch (type) {
@@ -148,8 +146,8 @@ export function ClientDetailsSheet({
                 <div className="flex items-center gap-2 text-sm">
                   <span className="font-mono font-semibold text-muted-foreground">{clientDetails.clientCode}</span>
                   <span className="text-muted-foreground">•</span>
-                  <Badge variant={clientDetails.type === "PROFESSIONNEL" ? "default" : "secondary"}>
-                    {getTypeLabel(clientDetails.type)}
+                  <Badge variant={clientDetails.type === ClientType.PROFESSIONNEL ? "default" : "secondary"}>
+                    {clientDetails.type}
                   </Badge>
                 </div>
               </div>

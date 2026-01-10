@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ClientInfo } from "./invoice-form-new";
 import { Search, Loader2 } from "lucide-react";
 import { getActiveClients, ActiveClientData } from "../actions";
+import { ClientType } from "@prisma/client";
 
 interface Step2ClientProps {
   client: ClientInfo;
@@ -25,7 +26,7 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
   const [address, setAddress] = React.useState(client.address);
   const [country, setCountry] = React.useState(client.country);
   const [fiscalMatricule, setFiscalMatricule] = React.useState(client.fiscalMatricule);
-  const [isProfessional, setIsProfessional] = React.useState(client.isProfessional);
+  const [clientType, setClientType] = React.useState<string>(client.type);
   const [activeClients, setActiveClients] = React.useState<ActiveClientData[]>([]);
   const [loadingClients, setLoadingClients] = React.useState(true);
 
@@ -54,8 +55,8 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
       setName(selectedClient.nom);
       setAddress(selectedClient.address);
       setCountry(selectedClient.pays);
+      setClientType(selectedClient.typeClient);
       setFiscalMatricule(selectedClient.matriculeFiscal === "-" ? "" : selectedClient.matriculeFiscal);
-      setIsProfessional(selectedClient.typeClient === "Professionnel");
     }
   };
 
@@ -66,13 +67,13 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
         address,
         country,
         fiscalMatricule,
-        isProfessional,
+        type: clientType,
       },
       selectedClientId
     );
   };
 
-  const isValid = selectedClientId !== "" && name.trim() !== "" && address.trim() !== "" && (!isProfessional || fiscalMatricule.trim() !== "");
+  const isValid = selectedClientId !== "" && name.trim() !== "" && address.trim() !== "" && (!(clientType === ClientType.PROFESSIONNEL) || fiscalMatricule.trim() !== "");
 
   return (
     <Card className="p-6">
@@ -104,7 +105,7 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
                     <div className="flex items-center gap-2">
                       <Search className="h-4 w-4 text-muted-foreground" />
                       <span>{name}</span>
-                      {isProfessional && (
+                      {clientType === ClientType.PROFESSIONNEL && (
                         <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">
                           Professionnel
                         </span>
@@ -145,26 +146,11 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
           {/* Show client details when selected */}
           {selectedClientId && (
             <>
-              {/* Client Type Display */}
-              <div className="p-3 rounded-lg bg-accent/50 border">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">
-                      Type de client: {isProfessional ? "Professionnel" : "Particulier"}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {isProfessional 
-                        ? "Client assujetti à la TVA avec matricule fiscal" 
-                        : "Client particulier sans matricule fiscal"}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
               {/* Nom / Raison sociale (Read-only) */}
               <div className="space-y-2">
                 <Label htmlFor="name">
-                  {isProfessional ? "Raison sociale" : "Nom complet"}
+                  {clientType === ClientType.PROFESSIONNEL ? "Raison sociale" : "Nom complet"}
                 </Label>
                 <Input
                   id="name"
@@ -175,7 +161,7 @@ export function Step2Client({ client, clientId: initialClientId, onBack, onNext,
               </div>
 
               {/* Matricule fiscal (Read-only) */}
-              {isProfessional && (
+              {clientType === ClientType.PROFESSIONNEL && (
                 <div className="space-y-2">
                   <Label htmlFor="fiscalMatricule">Matricule fiscal</Label>
                   <Input

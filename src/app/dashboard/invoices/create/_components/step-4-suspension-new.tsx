@@ -58,7 +58,7 @@ export function Step4Suspension({ suspensionData, onBack, onNext, isLoading }: S
               Mention obligatoire qui sera imprimée sur la facture:
             </p>
             <p className="text-sm italic">
-              "Vente en suspension de TVA suivant autorisation d'achat en suspension N° <strong>[{authNumber || "___"}]</strong> valable jusqu'au <strong>[{validUntil ? format(validUntil, "dd/MM/yyyy") : "___"}]</strong> et suivant Bon de commande N° <strong>[{purchaseOrderNumber || "___"}]</strong>"
+              "Vente en suspension de TVA suivant autorisation d'achat en suspension N° <strong>[{authNumber || "___"}]</strong> valable jusqu'au <strong>[{validUntil ? format(validUntil, "d MMMM yyyy à HH:mm") : "___"}]</strong> et suivant Bon de commande N° <strong>[{purchaseOrderNumber || "___"}]</strong>"
             </p>
           </AlertDescription>
         </Alert>

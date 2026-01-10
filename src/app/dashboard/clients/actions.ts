@@ -62,7 +62,7 @@ export async function getClients(): Promise<ClientTableData[]> {
         id: client.id,
         clientCode: client.codeClient,
         nom: client.name,
-        typeClient: client.type === "PROFESSIONNEL" ? "Professionnel" : "Particulier",
+        typeClient: client.type,
         matriculeFiscal: client.taxNumber || "-",
         pays: client.country,
         deviseParDefaut: client.defaultCurrency,
@@ -88,8 +88,8 @@ export interface ClientDetails {
   type: string;
   taxNumber: string | null;
   address: string;
-  email: string;
-  phone: string;
+  email: string | null;
+  phone: string | null;
   country: string;
   defaultCurrency: string;
   defaultInvoiceType: string;
@@ -145,8 +145,8 @@ export async function getClientDetails(clientId: string): Promise<ClientDetails 
       type: client.type,
       taxNumber: client.taxNumber,
       address: client.address,
-      email: client.email || "no email provided",
-      phone: client.phone || "no phone provided",
+      email: client.email,
+      phone: client.phone ,
       country: client.country,
       defaultCurrency: client.defaultCurrency,
       defaultInvoiceType: client.defaultInvoiceType,
@@ -167,10 +167,10 @@ export async function getClientDetails(clientId: string): Promise<ClientDetails 
 export interface UpdateClientData {
   name: string;
   type: string;
-  taxNumber: string;
+  taxNumber: string | null;
   address: string;
-  email: string;
-  phone: string;
+  email: string | null;
+  phone: string | null;
   country: string;
   defaultCurrency: string;
   defaultInvoiceType: string;
@@ -183,18 +183,18 @@ export async function updateClient(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     // Validate required fields
-    if (!data.name || !data.address || !data.email || !data.phone || !data.country) {
+    if (!data.name || !data.address || !data.country) {
       return { success: false, error: "Tous les champs obligatoires doivent être remplis" };
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(data.email)) {
+    if (data.email && !emailRegex.test(data.email)) {
       return { success: false, error: "Format d'email invalide" };
     }
 
     // If type is PROFESSIONNEL and taxNumber is required
-    if (data.type === "PROFESSIONNEL" && data.taxNumber) {
+    if (data.type === ClientType.PROFESSIONNEL && data.taxNumber) {
       // Check if tax number is unique (excluding current client)
       const existingClient = await prisma.client.findFirst({
         where: {
@@ -214,7 +214,7 @@ export async function updateClient(
       data: {
         name: data.name,
         type: data.type as ClientType,
-        taxNumber: data.type === "PROFESSIONNEL" ? data.taxNumber || null : null,
+        taxNumber: data.taxNumber,
         address: data.address,
         email: data.email,
         phone: data.phone,

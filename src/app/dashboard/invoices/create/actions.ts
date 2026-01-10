@@ -75,7 +75,7 @@ export async function getActiveClients(): Promise<ActiveClientData[]> {
       id: client.id,
       clientCode: client.codeClient,
       nom: client.name,
-      typeClient: client.type === "PROFESSIONNEL" ? "Professionnel" : "Particulier",
+      typeClient: client.type,
       matriculeFiscal: client.taxNumber || "-",
       pays: client.country,
       address: client.address,
@@ -116,6 +116,8 @@ export async function getNextInvoiceNumber(): Promise<string> {
 export interface SaveInvoiceData {
   // Context
   invoiceDate: Date;
+  dueDate: Date;
+  showDueDate: boolean;
   invoiceType: InvoiceType;
   currency: Currency;
   exchangeRate?: number;
@@ -292,6 +294,8 @@ export async function saveInvoice(
         data: {
           invoiceNumber: invoiceNumber,
           date: data.invoiceDate,
+          dueDate: data.dueDate,
+          showDueDate: data.showDueDate,
           exerciseYear: exerciseYear,
           type: data.invoiceType,
           status: data.status,
@@ -424,6 +428,8 @@ export async function updateInvoice(
         where: { id: invoiceId },
         data: {
           date: data.invoiceDate,
+          dueDate: data.dueDate,
+          showDueDate: data.showDueDate,
           type: data.invoiceType,
           currency: data.currency,
           exchangeRate: data.currency === "TND" ? null : data.exchangeRate,
@@ -482,6 +488,8 @@ export interface InvoiceEditData {
   id: string;
   invoiceNumber: string;
   invoiceDate: Date;
+  dueDate: Date;
+  showDueDate: boolean;
   exerciseYear: number;
   documentType: string;
   type: InvoiceType;
@@ -501,7 +509,7 @@ export interface InvoiceEditData {
     name: string;
     address: string;
     fiscalMatricule: string;
-    isProfessional: boolean;
+    type: string;
     country: string;
   };
   lines: Array<{
@@ -559,6 +567,8 @@ export async function getInvoiceForEdit(
       id: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       invoiceDate: invoice.date,
+      showDueDate: invoice.showDueDate,
+      dueDate: invoice.dueDate,
       exerciseYear: invoice.exerciseYear,
       documentType: invoice.documentType,
       type: invoice.type,
@@ -578,7 +588,7 @@ export async function getInvoiceForEdit(
         name: invoice.client.name,
         address: invoice.client.address,
         fiscalMatricule: invoice.client.taxNumber || "",
-        isProfessional: invoice.client.type === "PROFESSIONNEL",
+        type : invoice.client.type,
         country: invoice.client.country,
       },
       lines: invoice.items.map((item) => ({

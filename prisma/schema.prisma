@@ -20,6 +20,7 @@ enum Role {
 enum ClientType {
   PARTICULIER
   PROFESSIONNEL
+  PASSAGER
 }
 
 enum InvoiceType {
@@ -36,6 +37,10 @@ enum DocumentType {
 enum InvoiceStatus {
   BROUILLON
   VALIDÉ
+}
+
+enum PaymentStatus {
+  NON_PAYÉ
   PAYÉ
 }
 
@@ -151,11 +156,14 @@ model Invoice {
 
   invoiceNumber  String   // FAC-2026-00001 or AV-2026-00001
   date           DateTime
+  dueDate        DateTime // Date d'échéance
+  showDueDate    Boolean @default(true)
   exerciseYear   Int
 
   documentType   DocumentType @default(FACTURE)
   type           InvoiceType
   status         InvoiceStatus @default(BROUILLON)
+  paymentStatus  PaymentStatus @default(NON_PAYÉ)
 
   currency       Currency
   exchangeRate   Decimal? @db.Decimal(10, 4) // obligatoire si currency != TND
@@ -202,6 +210,7 @@ model Invoice {
   @@unique([companyId, invoiceNumber])
   @@index([exerciseYear])
   @@index([status])
+  @@index([paymentStatus])
   @@index([clientId])
   @@index([parentInvoiceId])
   @@index([documentType])
@@ -237,18 +246,21 @@ model InvoiceItem {
 //////////////////////////
 
 model Payment {
-  id          String   @id @default(uuid())
+  id              String   @id @default(uuid())
 
-  invoiceId  String
-  invoice    Invoice @relation(fields: [invoiceId], references: [id])
+  invoiceId       String
+  invoice         Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
-  amount     Decimal @db.Decimal(15, 3)
-  method     String
-  PAYÉAt     DateTime
+  amount          Decimal @db.Decimal(15, 3)
+  paymentMethod   String  // Modal de paiement: Espèces, Chèque, Virement, Carte, etc.
+  paymentDate     DateTime // Date du paiement
+  description     String?  // Notes/Description du paiement (optionnel)
 
-  createdAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([invoiceId])
+  @@index([paymentDate])
 }
 
 //////////////////////////

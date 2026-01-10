@@ -50,6 +50,140 @@ export function Step5Review({
   const calculationValid =
     Math.abs(totalHT * (1 + totalTVA / totalHT) + stampDuty - totalTTC) < 0.01;
 
+  // Convert currency code to French currency name
+  const getCurrencyName = (currency: string): string => {
+    const currencyMap: { [key: string]: string } = {
+      TND: "dinars",
+      EUR: "euros",
+      USD: "dollars",
+      GBP: "livres sterling",
+      CAD: "dollars canadiens",
+      CHF: "francs suisses",
+      JPY: "yens",
+      CNY: "yuans",
+    };
+    return currencyMap[currency] || currency;
+  };
+
+  // Convert number to words in French
+  const numberToWords = (num: number): string => {
+    const units = [
+      "",
+      "un",
+      "deux",
+      "trois",
+      "quatre",
+      "cinq",
+      "six",
+      "sept",
+      "huit",
+      "neuf",
+    ];
+    const tens = [
+      "",
+      "",
+      "vingt",
+      "trente",
+      "quarante",
+      "cinquante",
+      "soixante",
+      "soixante-dix",
+      "quatre-vingt",
+      "quatre-vingt-dix",
+    ];
+    const scales = ["", "mille", "million", "milliard"];
+
+    const convertGroup = (n: number): string => {
+      if (n === 0) return "";
+
+      const parts: string[] = [];
+      const scaleIndex = 0;
+
+      const groupValue = n;
+      let groupText = "";
+      const hundreds = Math.floor(groupValue / 100);
+      const remainder = groupValue % 100;
+
+      if (hundreds > 0) {
+        groupText = units[hundreds] + " cent";
+        if (remainder === 0 && hundreds > 1) groupText += "s";
+      }
+
+      if (remainder > 0) {
+        if (hundreds > 0) groupText += " ";
+        if (remainder < 10) {
+          groupText += units[remainder];
+        } else if (remainder < 20) {
+          groupText += [
+            "dix",
+            "onze",
+            "douze",
+            "treize",
+            "quatorze",
+            "quinze",
+            "seize",
+            "dix-sept",
+            "dix-huit",
+            "dix-neuf",
+          ][remainder - 10];
+        } else {
+          const ten = Math.floor(remainder / 10);
+          const unit = remainder % 10;
+          groupText += tens[ten];
+          if (unit > 0) {
+            groupText += "-" + units[unit];
+          }
+        }
+      }
+
+      return groupText;
+    };
+
+    const convertToWords = (n: number): string => {
+      if (n === 0) return "zéro";
+
+      const parts: string[] = [];
+      let scaleIndex = 0;
+
+      while (n > 0 && scaleIndex < scales.length) {
+        const groupValue = n % 1000;
+        if (groupValue !== 0) {
+          let groupText = convertGroup(groupValue);
+
+          if (scaleIndex > 0) {
+            groupText += " " + scales[scaleIndex];
+            if (groupValue > 1 && scaleIndex === 1) groupText += "s";
+          }
+
+          parts.unshift(groupText);
+        }
+        n = Math.floor(n / 1000);
+        scaleIndex++;
+      }
+
+      return parts.join(" ").trim();
+    };
+
+    // Split into whole and decimal parts
+    const wholePart = Math.floor(num);
+    const decimalPart = Math.round((num - wholePart) * 100);
+
+    let result = convertToWords(wholePart);
+    result += decimalPart > 0 ? ` et ${convertToWords(decimalPart)}` : "";
+
+    return result;
+  };
+
+  // Format the total with currency name properly positioned
+  const wholePart = Math.floor(totalTTC);
+  const decimalPart = Math.round((totalTTC - wholePart) * 100);
+  const wholePartWords = numberToWords(wholePart);
+  const decimalPartWords = decimalPart > 0 ? numberToWords(decimalPart) : "";
+  
+  const totalTTCDisplay = decimalPartWords 
+    ? `${wholePartWords} ${getCurrencyName(invoiceState.currency)} et ${decimalPartWords}`
+    : `${wholePartWords} ${getCurrencyName(invoiceState.currency)}`;
+
   return (
     <Card className="p-6">
       <div className="space-y-6">
@@ -143,87 +277,97 @@ export function Step5Review({
 
           {/* Main Content */}
           <div className="p-8 text-black">
-            {/* Company Address and Invoice Details */}
-            <div className="mb-8 grid grid-cols-2 gap-8">
-              {/* Left: Company Address */}
-              <div>
-                <h3 className="mb-3 text-sm font-bold">
-                  Adresse de l'entreprise
-                </h3>
-                <div className="space-y-1 text-sm">
-                  <p className="font-semibold">{invoiceState.company.name}</p>
-                  <p>{invoiceState.company.address}</p>
-                  <p>Téléphone: {invoiceState.company.phone}</p>
-                  <p>Email: {invoiceState.company.email}</p>
-                  <p className="font-medium">
-                    Matricule fiscal: {invoiceState.company.fiscalMatricule}
-                  </p>
-                  {/* {invoiceState.invoiceType && (
-                    <p className="mt-2 text-xs text-gray-600">
-                      Type:{" "}
-                      {invoiceState.invoiceType === "LOCAL"
-                        ? "Facture locale"
-                        : invoiceState.invoiceType === "EXPORTATION"
-                          ? "Facture exportation"
-                          : "Facture en suspension de TVA"}
-                    </p>
-                  )} */}
-                </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-1 text-left text-sm">
+                <p className="font-semibold">
+                  Address:{" "}
+                  <span className="font-normal">
+                    {invoiceState.company.address}
+                  </span>
+                </p>
+                <p className="font-semibold">
+                  Téléphone:{" "}
+                  <span className="font-normal">
+                    {invoiceState.company.phone}
+                  </span>
+                </p>
+                <p className="font-semibold">
+                  Email:{" "}
+                  <span className="font-normal">
+                    {invoiceState.company.email}
+                  </span>
+                </p>
+                <p className="font-medium">
+                  Matricule fiscal:{" "}
+                  <span className="font-normal">
+                    {invoiceState.company.fiscalMatricule}
+                  </span>
+                </p>
               </div>
 
-              {/* Right: Invoice Details */}
-              <div className="space-y-1 text-right text-sm">
-                <p>Date: {format(invoiceState.invoiceDate, "dd/MM/yyyy")}</p>
-                <p>Facture #: {invoiceState.invoiceNumber}</p>
-                <p>
-                  Client ID:{" "}
-                  {invoiceState.client.fiscalMatricule || "Particulier"}
+              <div className="space-y-1 text-right text-sm mb-8">
+                <p className="font-semibold">
+                  Date:{" "}
+                  <span className="font-normal">
+                    {format(invoiceState.invoiceDate, "d MMMM yyyy")}
+                  </span>
                 </p>
-                {invoiceState.currency !== "TND" && (
-                  <p className="mt-1 text-xs text-gray-600">
-                    Devise: {invoiceState.currency} • Taux:{" "}
-                    {invoiceState.exchangeRate.toFixed(4)} TND
+                <p className="font-semibold">
+                  Facture #:{" "}
+                  <span className="font-normal">
+                    {" "}
+                    {invoiceState.invoiceNumber}
+                  </span>
+                </p>
+                {invoiceState.showDueDate && (
+                  <p className="font-semibold">
+                    Date d'échéance:{" "}
+                    <span className="font-normal">
+                      {format(invoiceState.dueDate, "d MMMM yyyy")}
+                    </span>
                   </p>
                 )}
               </div>
             </div>
-
-            {/* Bill To and Prepared By */}
-            <div className="mb-8 grid grid-cols-2 gap-8">
-              {/* Left: Bill To */}
-              <div>
-                <h3 className="mb-3 text-sm font-bold">Facturer à</h3>
-                <div className="space-y-1 text-sm">
-                  <p className="font-semibold">{invoiceState.client.name}</p>
-                  <p>{invoiceState.client.address}</p>
-                  <p className="">{invoiceState.client.country}</p>
-                  {invoiceState.client.fiscalMatricule && (
-                    <p>
-                      Matricule fiscal: {invoiceState.client.fiscalMatricule}
+            <div className="mb-8 gap-8">
+              <div className="space-y-1 text-right text-sm">
+                <p className="font-semibold">
+                  Client:{" "}
+                  <span className="font-normal">
+                    {invoiceState.client.name}
+                  </span>
+                </p>
+                <p className="font-semibold">
+                  Address:{" "}
+                  <span className="font-normal">
+                    {invoiceState.client.address}
+                  </span>
+                </p>
+                <p className="font-semibold">
+                  Pays:{" "}
+                  <span className="font-normal">
+                    {" "}
+                    {invoiceState.client.country}{" "}
+                  </span>
+                </p>
+                {invoiceState.client.type !== "PASSAGER" &&
+                  invoiceState.client.fiscalMatricule && (
+                    <p className="font-semibold">
+                      {invoiceState.client.type === "PARTICULIER"
+                        ? "Identifiant unique"
+                        : "Identifiant unique"}
+                      :{" "}
+                      <span className="font-normal">
+                        {invoiceState.client.fiscalMatricule}
+                      </span>
                     </p>
                   )}
-                  <p className="">
-                    {invoiceState.client.isProfessional
-                      ? "Client professionnel"
-                      : "Client particulier"}
-                  </p>
-                </div>
-                <p className="mt-4 text-sm">
-                  Date d'échéance:{" "}
-                  {format(
-                    new Date(
-                      invoiceState.invoiceDate.getTime() +
-                        30 * 24 * 60 * 60 * 1000
-                    ),
-                    "dd/MM/yyyy"
-                  )}
-                </p>
               </div>
+            </div>
 
-              {/* Right: Can be used for additional info if needed */}
-              <div className="text-right">
-                {/* Optional: Add prepared by or other info */}
-              </div>
+            {/* Bill To and Prepared By */}
+            <div className="mb-8 grid text-right gap-8">
+              {/* Left: Bill To */}
             </div>
 
             {/* Items Table */}
@@ -278,8 +422,69 @@ export function Step5Review({
               </table>
             </div>
 
+                        <div className="flex justify-between gap-8">
+              {/* Left: TVA Details Table */}
+              <div className="flex-1">
+                <table className="w-full text-sm border border-black">
+                  <thead>
+                    <tr className="bg-gray-100 border-b border-black">
+                      <th className="px-4 py-2 text-left font-semibold">Détails TVA</th>
+                      <th className="px-4 py-2 text-right font-semibold">Montant</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-black">
+                      <td className="px-4 py-2">Montant HT</td>
+                      <td className="px-4 py-2 text-right font-medium">
+                        {totalHT.toFixed(2)} {invoiceState.currency}
+                      </td>
+                    </tr>
+                    {invoiceState.invoiceType !== "EXPORTATION" && (
+                      <>
+                        {invoiceState.lines.map((line) => (
+                          <tr key={`tax-${line.id}`} className="border-b border-gray-300">
+                            <td className="px-4 py-2 text-sm">
+                              TVA {(line.vatRate ).toFixed(0)}% ({line.description})
+                            </td>
+                            <td className="px-4 py-2 text-right text-sm font-normal">
+                              {line.lineTVA.toFixed(2)} {invoiceState.currency}
+                            </td>
+                          </tr>
+                        ))}
+                        <tr className="bg-gray-100 border-t-2 border-black font-semibold">
+                          <td className="px-4 py-2">Total Taxes</td>
+                          <td className="px-4 py-2 text-right">
+                            {totalTVA.toFixed(2)} {invoiceState.currency}
+                          </td>
+                        </tr>
+                      </>
+                    )}
+                    {invoiceState.invoiceType === "EXPORTATION" && (
+                      <tr className="bg-blue-50 border-t-2 border-black">
+                        <td className="px-4 py-2 text-sm italic text-gray-600">Exportation (0% TVA)</td>
+                        <td className="px-4 py-2 text-right text-sm font-normal">
+                          0.00 {invoiceState.currency}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Right: Totals Summary */}
+              <div className="w-96 space-y-2 text-sm">
+
+              </div>
+            </div>
+
             {/* Totals Section */}
-            <div className="flex justify-end">
+            <div className="flex justify-between gap-8 mt-10">
+              {/* Left: TVA Details Table */}
+              <div className="flex-1">
+          
+              </div>
+
+              {/* Right: Totals Summary */}
               <div className="w-96 space-y-2 text-sm">
                 <div className="flex justify-between border-b py-2">
                   <span>Sous-total (HT)</span>
@@ -300,10 +505,13 @@ export function Step5Review({
                   </span>
                 </div>
                 <div className="mt-2 flex justify-between bg-black px-4 py-2 text-base font-bold text-white">
-                  <span>TOTAL</span>
+                  <span>TTC</span>
                   <span>
                     {totalTTC.toFixed(2)} {invoiceState.currency}
                   </span>
+                </div>
+                <div className="bg-gray-100 px-4 py-2 text-xs font-normal text-gray-700">
+                  <p><strong>le montant TTC de la facture est {totalTTCDisplay}</strong></p>
                 </div>
               </div>
             </div>
@@ -323,7 +531,10 @@ export function Step5Review({
                   valable jusqu'au{" "}
                   <strong className="font-bold">
                     {invoiceState.suspensionValidUntil
-                      ? format(invoiceState.suspensionValidUntil, "dd/MM/yyyy")
+                      ? format(
+                          invoiceState.suspensionValidUntil,
+                          "d MMMM yyyy à HH:mm"
+                        )
                       : "N/A"}
                   </strong>{" "}
                   et suivant Bon de commande N°{" "}

@@ -18,7 +18,6 @@ import { ClientStatus } from "@prisma/client";
 export function DataTable({ data: initialData }: { data: ClientTableData[] }) {
   const [data, setData] = React.useState(() => initialData);
   const [activeTab, setActiveTab] = React.useState("all");
-  console.log("Initial Data:", initialData);
   
   const activeClients = React.useMemo(() => 
     initialData.filter(client => client.statut === ClientStatus.ACTIVE),

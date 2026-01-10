@@ -1,18 +1,19 @@
 "use server";
 
 import { prisma } from "@/db";
+import { ClientType, Currency, InvoiceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 interface CreateClientInput {
-  type: "PARTICULIER" | "PROFESSIONNEL";
+  type: ClientType;
   name: string;
   address: string;
   country: string;
   taxNumber: string | null;
   email: string | null;
   phone: string | null;
-  defaultCurrency: "TND" | "EUR" | "USD";
-  defaultInvoiceType: "LOCAL" | "EXPORTATION" | "SUSPENSION";
+  defaultCurrency: Currency;
+  defaultInvoiceType: InvoiceType
 }
 
 export async function createClient(input: CreateClientInput) {
@@ -143,7 +144,7 @@ export async function getClients() {
         id: client.id,
         clientCode: client.codeClient,
         nom: client.name,
-        typeClient: client.type === "PROFESSIONNEL" ? "Professionnel" : "Particulier",
+        typeClient: client.type,
         matriculeFiscal: client.taxNumber || "-",
         pays: client.country,
         deviseParDefaut: client.defaultCurrency,

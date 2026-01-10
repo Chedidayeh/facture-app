@@ -1,16 +1,16 @@
 import { ColumnDef } from "@tanstack/react-table";
 import * as React from "react";
-import { 
-  EllipsisVertical, 
-  Eye, 
-  Pencil, 
-  Trash2, 
-  CheckCircle, 
-  Copy, 
-  FileText, 
-  DollarSign, 
+import {
+  EllipsisVertical,
+  Eye,
+  Pencil,
+  Trash2,
+  CheckCircle,
+  Copy,
+  FileText,
+  DollarSign,
   Receipt,
-  FileX
+  FileX,
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -37,10 +37,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-import { InvoiceTableData, generateInvoicePDF, duplicateInvoice, deleteInvoice, markAsPaid, validateInvoice } from "../actions";
+import {
+  InvoiceTableData,
+  generateInvoicePDF,
+  duplicateInvoice,
+  deleteInvoice,
+  markAsPaid,
+  validateInvoice,
+} from "../actions";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { InvoiceDetailsSheet } from "./invoice-details-sheet";
 import { CreditNoteDialog } from "./credit-note-dialog";
+import { MarkAsPaidDialog } from "./mark-as-paid-dialog";
 import { toast } from "sonner";
 
 export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
@@ -49,7 +57,10 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
     header: ({ table }) => (
       <div className="flex items-center justify-center">
         <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -69,31 +80,49 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
   },
   {
     accessorKey: "invoiceNumber",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="N° Facture" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="N° Facture" />
+    ),
     cell: ({ row }) => (
-      <div className="font-mono text-sm font-semibold">{row.original.invoiceNumber}</div>
+      <div className="font-mono text-sm font-semibold">
+        {row.original.invoiceNumber}
+      </div>
     ),
     enableSorting: false,
   },
   {
     accessorKey: "date",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Date" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Date" />
+    ),
     cell: ({ row }) => {
-      return <div className="text-sm">{format(row.original.date, "dd/MM/yyyy", { locale: fr })}</div>;
+      return (
+        <div className="text-sm">
+          {format(new Date(row.original.date), "d MMMM yyyy à HH:mm", {
+            locale: fr,
+          })}
+        </div>
+      );
     },
     enableSorting: false,
   },
   {
     accessorKey: "clientName",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Client" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Client" />
+    ),
     cell: ({ row }) => {
-      return <div className="font-medium text-sm">{row.original.clientName}</div>;
+      return (
+        <div className="font-medium text-sm">{row.original.clientName}</div>
+      );
     },
     enableSorting: false,
   },
   {
     accessorKey: "documentType",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Document" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Document" />
+    ),
     cell: ({ row }) => {
       const documentType = row.original.documentType;
       const isRectificative = row.original.rectifiesInvoiceId !== null;
@@ -101,13 +130,16 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
       const parentInvoiceNumber = row.original.parentInvoiceNumber;
       const variant = documentType === "AVOIR" ? "destructive" : "default";
       const label = documentType === "AVOIR" ? "Avoir" : "Facture";
-      
+
       return (
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5">
             <Badge variant={variant}>{label}</Badge>
             {isRectificative && (
-              <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-300 text-xs">
+              <Badge
+                variant="outline"
+                className="bg-blue-50 text-blue-600 border-blue-300 text-xs"
+              >
                 Rectificative
               </Badge>
             )}
@@ -115,13 +147,19 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
           {/* Afficher la facture source pour les avoirs */}
           {documentType === "AVOIR" && parentInvoiceNumber && (
             <span className="text-xs text-muted-foreground">
-              De: <span className="font-mono font-medium">{parentInvoiceNumber}</span>
+              De:{" "}
+              <span className="font-mono font-medium">
+                {parentInvoiceNumber}
+              </span>
             </span>
           )}
           {/* Afficher la facture source pour les rectificatives */}
           {isRectificative && rectifiesInvoiceNumber && (
             <span className="text-xs text-muted-foreground">
-              Rectifie: <span className="font-mono font-medium">{rectifiesInvoiceNumber}</span>
+              Rectifie:{" "}
+              <span className="font-mono font-medium">
+                {rectifiesInvoiceNumber}
+              </span>
             </span>
           )}
         </div>
@@ -131,7 +169,9 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
   },
   {
     accessorKey: "type",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Type" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Type" />
+    ),
     cell: ({ row }) => {
       const variant = row.original.type === "Local" ? "secondary" : "default";
       return <Badge variant={variant}>{row.original.type}</Badge>;
@@ -140,15 +180,21 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
   },
   {
     accessorKey: "currency",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Devise" />,
-    cell: ({ row }) => (
-      <Badge variant="outline">{row.original.currency}</Badge>
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Devise" />
     ),
+    cell: ({ row }) => <Badge variant="outline">{row.original.currency}</Badge>,
     enableSorting: false,
   },
   {
     accessorKey: "totalTTC",
-    header: ({ column }) => <DataTableColumnHeader className="text-right" column={column} title="Total TTC" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader
+        className="text-right"
+        column={column}
+        title="Total TTC"
+      />
+    ),
     cell: ({ row }) => (
       <div className="text-right">
         <Badge variant="secondary" className="font-mono text-sm font-semibold">
@@ -160,18 +206,23 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
   },
   {
     id: "payment",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Paiement" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Paiement" />
+    ),
     cell: ({ row }) => {
-      const status = row.original.status;
-      if (status === "PAYÉ") {
+      const paymentStatus = row.original.paymentStatus;
+      if (paymentStatus === "PAYÉ") {
         return (
           <Badge variant="default" className="bg-green-600 hover:bg-green-500">
             Payée
           </Badge>
         );
-      } else if (status === "VALIDÉ") {
+      } else if (paymentStatus === "NON_PAYÉ") {
         return (
-          <Badge variant="outline" className="border-orange-400 text-orange-400">
+          <Badge
+            variant="outline"
+            className="border-orange-400 text-orange-400"
+          >
             Non payée
           </Badge>
         );
@@ -187,16 +238,15 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
   },
   {
     accessorKey: "status",
-    header: ({ column }) => <DataTableColumnHeader column={column} title="Statut" />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Statut" />
+    ),
     cell: ({ row }) => {
-      const statusColor = 
-        row.original.status === "PAYÉ" ? "default" :
-        row.original.status === "VALIDÉ" ? "secondary" : "outline";
-      return (
-        <Badge variant={statusColor}>
-          {row.original.status}
-        </Badge>
-      );
+      const status = row.original.status;
+      const statusColor = status === "VALIDÉ" ? "default" : "secondary";
+      const statusLabel = status === "VALIDÉ" ? "Validée" : "Brouillon";
+
+      return <Badge variant={statusColor}>{statusLabel}</Badge>;
     },
     enableSorting: false,
   },
@@ -209,8 +259,9 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
       const hasRectificatives = row.original.hasRectificatives;
       const totalCreditNotesAmount = row.original.totalCreditNotesAmount;
       const totalTTC = row.original.totalTTC;
-      const isFullyCredited = Math.abs(totalCreditNotesAmount) >= Math.abs(totalTTC);
-      
+      const isFullyCredited =
+        Math.abs(totalCreditNotesAmount) >= Math.abs(totalTTC);
+
       const [detailsOpen, setDetailsOpen] = React.useState(false);
       const [isGeneratingPDF, setIsGeneratingPDF] = React.useState(false);
       const [isDuplicating, setIsDuplicating] = React.useState(false);
@@ -219,9 +270,10 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
       const [validateDialogOpen, setValidateDialogOpen] = React.useState(false);
       const [isValidating, setIsValidating] = React.useState(false);
       const [paidDialogOpen, setPaidDialogOpen] = React.useState(false);
-      const [isMarkingPaid, setIsMarkingPaid] = React.useState(false);
-      const [rectificativeWarningOpen, setRectificativeWarningOpen] = React.useState(false);
-      const [creditNoteDialogOpen, setCreditNoteDialogOpen] = React.useState(false);
+      const [rectificativeWarningOpen, setRectificativeWarningOpen] =
+        React.useState(false);
+      const [creditNoteDialogOpen, setCreditNoteDialogOpen] =
+        React.useState(false);
 
       const handleGeneratePDF = async () => {
         setIsGeneratingPDF(true);
@@ -319,33 +371,6 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
         }
       };
 
-      const handleMarkAsPaid = async () => {
-        setIsMarkingPaid(true);
-        try {
-          const result = await markAsPaid(row.original.id);
-
-          if (result.success) {
-            toast.success("Facture marquée comme payée", {
-              description: "Le statut de la facture a été mis à jour.",
-            });
-            // Refresh the page to update the list
-            window.location.reload();
-          } else {
-            toast.error("Erreur", {
-              description: result.error || "Impossible de marquer la facture comme payée",
-            });
-          }
-        } catch (error) {
-          console.error("Mark as paid error:", error);
-          toast.error("Erreur", {
-            description: "Une erreur est survenue lors de la mise à jour",
-          });
-        } finally {
-          setIsMarkingPaid(false);
-          setPaidDialogOpen(false);
-        }
-      };
-
       const handleMarkAsPaidClick = () => {
         // Si la facture a des rectificatives, afficher un avertissement
         if (hasRectificatives) {
@@ -367,7 +392,8 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
 
           if (result.success) {
             toast.success("Facture validée avec succès", {
-              description: "La facture est maintenant validée et prête à être émise.",
+              description:
+                "La facture est maintenant validée et prête à être émise.",
             });
             // Refresh the page to update the list
             window.location.reload();
@@ -386,12 +412,16 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
           setValidateDialogOpen(false);
         }
       };
-      
+
       return (
         <>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="data-[state=open]:bg-muted text-muted-foreground flex size-8" size="icon">
+              <Button
+                variant="ghost"
+                className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+                size="icon"
+              >
                 <EllipsisVertical className="size-4" />
                 <span className="sr-only">Open menu</span>
               </Button>
@@ -401,205 +431,250 @@ export const dashboardColumns: ColumnDef<InvoiceTableData>[] = [
                 <Eye className="mr-2 size-4" />
                 Voir Détails
               </DropdownMenuItem>
-            
-            {/* BROUILLON actions */}
-            {status === "BROUILLON" && (
-              <>
-                <DropdownMenuItem onClick={() => router.push(`/dashboard/invoices/edit/${row.original.id}`)}>
-                  <Pencil className="mr-2 size-4" />
-                  Modifier
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setValidateDialogOpen(true)}>
-                  <CheckCircle className="mr-2 size-4" />
-                  Valider
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleDuplicate} disabled={isDuplicating}>
-                  <Copy className="mr-2 size-4" />
-                  {isDuplicating ? "Duplication..." : "Dupliquer"}
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="text-destructive"
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  <Trash2 className="mr-2 size-4" />
-                  Supprimer
-                </DropdownMenuItem>
-              </>
-            )}
-            
-            {/* VALIDÉ actions */}
-            {status === "VALIDÉ" && (
-              <>
-                <DropdownMenuItem onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
-                  <FileText className="mr-2 size-4" />
-                  {isGeneratingPDF ? "Génération..." : "Générer PDF"}
-                </DropdownMenuItem>
-                {/* Ne pas permettre de marquer comme payée si facture complètement annulée par avoirs */}
-                {!isFullyCredited && (
-                  <DropdownMenuItem onClick={handleMarkAsPaidClick}>
-                    <DollarSign className="mr-2 size-4" />
-                    Marquer comme Payée
-                    {totalCreditNotesAmount > 0 && (
-                      <span className="ml-2 text-xs text-orange-600">
-                        ({(totalTTC - totalCreditNotesAmount).toFixed(2)})
-                      </span>
-                    )}
+
+              {/* BROUILLON actions */}
+              {status === "BROUILLON" && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      router.push(`/dashboard/invoices/edit/${row.original.id}`)
+                    }
+                  >
+                    <Pencil className="mr-2 size-4" />
+                    Modifier
                   </DropdownMenuItem>
-                )}
-                {/* Actions spécifiques aux FACTURES uniquement */}
-                {documentType === "FACTURE" && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setCreditNoteDialogOpen(true)}>
-                      <FileX className="mr-2 size-4" />
-                      Créer Avoir
+                  <DropdownMenuItem onClick={() => setValidateDialogOpen(true)}>
+                    <CheckCircle className="mr-2 size-4" />
+                    Valider
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={handleDuplicate}
+                    disabled={isDuplicating}
+                  >
+                    <Copy className="mr-2 size-4" />
+                    {isDuplicating ? "Duplication..." : "Dupliquer"}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    <Trash2 className="mr-2 size-4" />
+                    Supprimer
+                  </DropdownMenuItem>
+                </>
+              )}
+
+              {/* VALIDÉ actions */}
+              {status === "VALIDÉ" && (
+                <>
+                  <DropdownMenuItem
+                    onClick={handleGeneratePDF}
+                    disabled={isGeneratingPDF}
+                  >
+                    <FileText className="mr-2 size-4" />
+                    {isGeneratingPDF ? "Génération..." : "Générer PDF"}
+                  </DropdownMenuItem>
+                  {/* Ne pas permettre de marquer comme payée si facture complètement annulée par avoirs */}
+                  {!isFullyCredited && (
+                    <DropdownMenuItem onClick={handleMarkAsPaidClick}>
+                      <DollarSign className="mr-2 size-4" />
+                      Marquer comme Payée
+                      {totalCreditNotesAmount > 0 && (
+                        <span className="ml-2 text-xs text-orange-600">
+                          ({(totalTTC - totalCreditNotesAmount).toFixed(2)})
+                        </span>
+                      )}
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => router.push(`/dashboard/invoices/rectify/${row.original.id}`)}>
-                      <Receipt className="mr-2 size-4" />
-                      Facture Rectificative
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </>
-            )}
-            
-            {/* PAYÉ actions */}
-            {status === "PAYÉ" && (
-              <>
-                <DropdownMenuItem onClick={handleGeneratePDF} disabled={isGeneratingPDF}>
-                  <FileText className="mr-2 size-4" />
-                  {isGeneratingPDF ? "Génération..." : "Générer PDF"}
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Receipt className="mr-2 size-4" />
-                  Historique Paiements
-                </DropdownMenuItem>
-                {/* Créer Avoir uniquement pour les FACTURES payées */}
-                {documentType === "FACTURE" && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setCreditNoteDialogOpen(true)}>
-                      <FileX className="mr-2 size-4" />
-                      Créer Avoir
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                  )}
+                  {/* Actions spécifiques aux FACTURES uniquement */}
+                  {documentType === "FACTURE" && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setCreditNoteDialogOpen(true)}
+                      >
+                        <FileX className="mr-2 size-4" />
+                        Créer Avoir
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() =>
+                          router.push(
+                            `/dashboard/invoices/rectify/${row.original.id}`
+                          )
+                        }
+                      >
+                        <Receipt className="mr-2 size-4" />
+                        Facture Rectificative
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
+              )}
 
-        <InvoiceDetailsSheet
-          open={detailsOpen}
-          onOpenChange={setDetailsOpen}
-          invoiceId={row.original.id}
-        />
+              {/* PAYÉ actions - Show actions for paid invoices */}
+              {row.original.paymentStatus === "PAYÉ" && (
+                <>
+                  <DropdownMenuItem
+                    onClick={handleGeneratePDF}
+                    disabled={isGeneratingPDF}
+                  >
+                    <FileText className="mr-2 size-4" />
+                    {isGeneratingPDF ? "Génération..." : "Générer PDF"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Receipt className="mr-2 size-4" />
+                    Historique Paiements
+                  </DropdownMenuItem>
+                  {/* Créer Avoir uniquement pour les FACTURES payées */}
+                  {documentType === "FACTURE" && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={() => setCreditNoteDialogOpen(true)}
+                      >
+                        <FileX className="mr-2 size-4" />
+                        Créer Avoir
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette action est irréversible. La facture {row.original.invoiceNumber} sera
-                définitivement supprimée de la base de données.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                {isDeleting ? "Suppression..." : "Supprimer"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          <InvoiceDetailsSheet
+            open={detailsOpen}
+            onOpenChange={setDetailsOpen}
+            invoiceId={row.original.id}
+          />
 
-        <AlertDialog open={validateDialogOpen} onOpenChange={setValidateDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Valider la facture</AlertDialogTitle>
-              <AlertDialogDescription>
-                Voulez-vous valider la facture {row.original.invoiceNumber} ?
-                <span className="block mt-2 font-medium">
-                  Une fois validée, la facture ne pourra plus être modifiée et pourra être émise au client.
-                </span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isValidating}>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleValidate}
-                disabled={isValidating}
-                className=""
-              >
-                {isValidating ? "Validation..." : "Valider"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          <AlertDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Êtes-vous sûr ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action est irréversible. La facture{" "}
+                  {row.original.invoiceNumber} sera définitivement supprimée de
+                  la base de données.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isDeleting}>
+                  Annuler
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {isDeleting ? "Suppression..." : "Supprimer"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-        <AlertDialog open={paidDialogOpen} onOpenChange={setPaidDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Marquer comme payée</AlertDialogTitle>
-              <AlertDialogDescription>
-                Voulez-vous marquer la facture {row.original.invoiceNumber} comme payée ?
-                {totalCreditNotesAmount > 0 && (
-                  <span className="block mt-2 text-orange-600 font-medium">
-                    Note: Cette facture a des avoirs pour un montant de {totalCreditNotesAmount.toFixed(2)} {row.original.currency}. 
-                    Montant restant à payer: {(totalTTC - totalCreditNotesAmount).toFixed(2)} {row.original.currency}
+          <AlertDialog
+            open={validateDialogOpen}
+            onOpenChange={setValidateDialogOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Valider la facture</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Voulez-vous valider la facture {row.original.invoiceNumber} ?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isValidating}>
+                  Annuler
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleValidate}
+                  disabled={isValidating}
+                  className=""
+                >
+                  {isValidating ? "Validation..." : "Valider"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <AlertDialog open={paidDialogOpen} onOpenChange={setPaidDialogOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Avertissement - Factures Rectificatives
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette facture ({row.original.invoiceNumber}) possède des
+                  factures rectificatives. Assurez-vous de payer le montant
+                  correct indiqué dans la dernière facture rectificative, et non
+                  le montant de la facture originale.
+                  <span className="block mt-3 font-medium text-blue-700">
+                    Voulez-vous continuer et marquer cette facture comme payée ?
                   </span>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isMarkingPaid}>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleMarkAsPaid}
-                disabled={isMarkingPaid}
-              >
-                {isMarkingPaid ? "Traitement..." : "Confirmer"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRectificativeWarningConfirm}>
+                  Continuer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-        <AlertDialog open={rectificativeWarningOpen} onOpenChange={setRectificativeWarningOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Avertissement - Factures Rectificatives</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette facture ({row.original.invoiceNumber}) possède des factures rectificatives. 
-                Assurez-vous de payer le montant correct indiqué dans la dernière facture rectificative, 
-                et non le montant de la facture originale.
-                <span className="block mt-3 font-medium text-blue-700">
-                  Voulez-vous continuer et marquer cette facture comme payée ?
-                </span>
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleRectificativeWarningConfirm}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                Continuer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+          <MarkAsPaidDialog
+            open={paidDialogOpen}
+            onOpenChange={setPaidDialogOpen}
+            invoiceId={row.original.id}
+            invoiceNumber={row.original.invoiceNumber}
+            amount={totalTTC - totalCreditNotesAmount}
+            currency={row.original.currency}
+          />
 
-        <CreditNoteDialog
-          open={creditNoteDialogOpen}
-          onOpenChange={setCreditNoteDialogOpen}
-          invoiceId={row.original.id}
-          invoiceNumber={row.original.invoiceNumber}
-        />
-      </>
+          <AlertDialog
+            open={rectificativeWarningOpen}
+            onOpenChange={setRectificativeWarningOpen}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Avertissement - Factures Rectificatives
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette facture ({row.original.invoiceNumber}) possède des
+                  factures rectificatives. Assurez-vous de payer le montant
+                  correct indiqué dans la dernière facture rectificative, et non
+                  le montant de la facture originale.
+                  <span className="block mt-3 font-medium text-blue-700">
+                    Voulez-vous continuer et marquer cette facture comme payée ?
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleRectificativeWarningConfirm}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Continuer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          <CreditNoteDialog
+            open={creditNoteDialogOpen}
+            onOpenChange={setCreditNoteDialogOpen}
+            invoiceId={row.original.id}
+            invoiceNumber={row.original.invoiceNumber}
+          />
+        </>
       );
     },
     enableSorting: false,

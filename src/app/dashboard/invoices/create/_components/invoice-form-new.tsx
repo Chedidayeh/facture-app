@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -11,9 +11,16 @@ import { Step2Client } from "./step-2-client-new";
 import { Step3Lines } from "./step-3-lines-new";
 import { Step4Suspension } from "./step-4-suspension-new";
 import { Step5Review } from "./step-5-review-new";
-import { saveInvoice, SaveInvoiceData, getCompanyInfo, getNextInvoiceNumber, getInvoiceForEdit, updateInvoice } from "../actions";
-import { Currency, InvoiceType } from "@prisma/client";
-
+import {
+  saveInvoice,
+  SaveInvoiceData,
+  getCompanyInfo,
+  getNextInvoiceNumber,
+  getInvoiceForEdit,
+  updateInvoice,
+} from "../actions";
+import { ClientType, Currency, InvoiceType } from "@prisma/client";
+import { Button } from "@/components/ui/button";
 
 export interface LineItem {
   id: string;
@@ -33,7 +40,7 @@ export interface ClientInfo {
   address: string;
   country: string;
   fiscalMatricule: string;
-  isProfessional: boolean;
+  type: string;
 }
 
 export interface CompanyInfo {
@@ -55,6 +62,8 @@ type Step = 1 | 2 | 3 | 4 | 5;
 export interface InvoiceState {
   // Step 1: Context
   invoiceDate: Date;
+  dueDate: Date;
+  showDueDate: boolean;
   invoiceType: InvoiceType;
   currency: Currency;
   exchangeRate: number;
@@ -78,9 +87,13 @@ export interface InvoiceState {
   exerciseYear: number;
 }
 
-export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFormProps) {
+export function InvoiceForm({
+  companyId,
+  invoiceId,
+  mode = "create",
+}: InvoiceFormProps) {
   const router = useRouter();
-  
+
   // Step state
   const [currentStep, setCurrentStep] = React.useState<Step>(1);
   const [isLoadingCompany, setIsLoadingCompany] = React.useState(true);
@@ -89,6 +102,8 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
   // Unified invoice state
   const [invoiceState, setInvoiceState] = React.useState<InvoiceState>({
     invoiceDate: new Date(),
+    dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    showDueDate: true,
     invoiceType: "LOCAL",
     currency: "TND",
     exchangeRate: 1,
@@ -104,7 +119,7 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
       name: "",
       address: "",
       fiscalMatricule: "",
-      isProfessional: false,
+      type: "",
       country: "",
     },
     clientId: "",
@@ -122,7 +137,7 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
       setIsLoadingCompany(true);
       const companyData = await getCompanyInfo();
       if (companyData) {
-        setInvoiceState(prev => ({
+        setInvoiceState((prev) => ({
           ...prev,
           companyLogo: companyData.logo,
           company: {
@@ -134,16 +149,16 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
           },
         }));
       }
-      
+
       // Fetch the next invoice number only in create mode
       if (mode === "create") {
         const nextInvoiceNumber = await getNextInvoiceNumber();
-        setInvoiceState(prev => ({
+        setInvoiceState((prev) => ({
           ...prev,
           invoiceNumber: nextInvoiceNumber,
         }));
       }
-      
+
       setIsLoadingCompany(false);
     };
     loadCompanyInfo();
@@ -155,11 +170,13 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
       if (mode === "edit" && invoiceId) {
         setIsLoadingInvoice(true);
         const result = await getInvoiceForEdit(invoiceId);
-        
+
         if (result.success && result.data) {
           const invoiceData = result.data;
           setInvoiceState({
             invoiceDate: invoiceData.invoiceDate,
+            dueDate: invoiceData.dueDate,
+            showDueDate: invoiceData.showDueDate,
             invoiceType: invoiceData.type,
             currency: invoiceData.currency,
             exchangeRate: invoiceData.exchangeRate,
@@ -170,7 +187,8 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
             lines: invoiceData.lines,
             suspensionAuthNumber: invoiceData.suspensionAuthNumber || "",
             suspensionValidUntil: invoiceData.suspensionValidUntil,
-            suspensionPurchaseOrderNumber: invoiceData.purchaseOrderNumber || "",
+            suspensionPurchaseOrderNumber:
+            invoiceData.purchaseOrderNumber || "",
             invoiceNumber: invoiceData.invoiceNumber,
             exerciseYear: invoiceData.exerciseYear,
           });
@@ -180,7 +198,7 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
           });
           router.push("/dashboard/invoices");
         }
-        
+
         setIsLoadingInvoice(false);
       }
     };
@@ -203,21 +221,24 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
   // Handle Step 2 completion: Client selection
   const handleStep2Complete = (client: ClientInfo, clientId: string) => {
     console.log("Step 2 - Client Data:", client, "Client ID:", clientId);
-    
+
     // Validate client data
     const clientErrors: string[] = [];
     if (!client.name) clientErrors.push("Le nom du client est obligatoire");
-    if (!client.address) clientErrors.push("L'adresse du client est obligatoire");
-    if (client.isProfessional && !client.fiscalMatricule) {
-      clientErrors.push("Le matricule fiscal est obligatoire pour un client professionnel");
+    if (!client.address)
+      clientErrors.push("L'adresse du client est obligatoire");
+    if (client.type === ClientType.PROFESSIONNEL && !client.fiscalMatricule) {
+      clientErrors.push(
+        "Le matricule fiscal est obligatoire pour un client professionnel"
+      );
     }
     if (!clientId) clientErrors.push("Veuillez sélectionner un client");
-    
+
     if (clientErrors.length > 0) {
       setErrors(clientErrors);
       return;
     }
-    
+
     setInvoiceState((prev) => ({ ...prev, client, clientId }));
     setErrors([]);
     setCurrentStep(3);
@@ -232,16 +253,16 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
   // Handle Step 3 completion: Lines
   const handleStep3Complete = (lines: LineItem[]) => {
     console.log("Step 3 - Lines Data:", lines);
-    
+
     // Validate lines
     if (lines.length === 0) {
       setErrors(["Vous devez ajouter au moins une ligne à la facture"]);
       return;
     }
-    
+
     setInvoiceState((prev) => ({ ...prev, lines }));
     setErrors([]);
-    
+
     // If suspension type, go to step 4, otherwise go to step 5 (review)
     if (invoiceState.invoiceType === "SUSPENSION") {
       setCurrentStep(4);
@@ -253,7 +274,7 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
   // Handle Step 4 completion: Suspension data
   const handleStep4Complete = (data: Partial<InvoiceState>) => {
     console.log("Step 4 - Suspension Data:", data);
-    
+
     // Validate suspension data
     const suspensionErrors: string[] = [];
     if (!data.suspensionAuthNumber) {
@@ -265,12 +286,12 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
     if (!data.suspensionPurchaseOrderNumber) {
       suspensionErrors.push("Le numéro de bon de commande est obligatoire");
     }
-    
+
     if (suspensionErrors.length > 0) {
       setErrors(suspensionErrors);
       return;
     }
-    
+
     setInvoiceState((prev) => ({ ...prev, ...data }));
     setErrors([]);
     setCurrentStep(5);
@@ -279,27 +300,40 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
   // Handle final validation
   const handleFinalValidation = async () => {
     setIsValidating(true);
-    
+
     try {
       // Calculate totals
-      const totalHT = invoiceState.lines.reduce((sum, line) => sum + line.lineTotalHT, 0);
-      const totalTVA = invoiceState.lines.reduce((sum, line) => sum + line.lineTVA, 0);
-      const stampDuty = 
-        invoiceState.invoiceType === "EXPORTATION" ? 0 :
-        invoiceState.currency !== "TND" ? 0 :
-        1;
+      const totalHT = invoiceState.lines.reduce(
+        (sum, line) => sum + line.lineTotalHT,
+        0
+      );
+      const totalTVA = invoiceState.lines.reduce(
+        (sum, line) => sum + line.lineTVA,
+        0
+      );
+      const stampDuty =
+        invoiceState.invoiceType === "EXPORTATION"
+          ? 0
+          : invoiceState.currency !== "TND"
+          ? 0
+          : 1;
       const totalTTC = totalHT + totalTVA + stampDuty;
 
       // Prepare data for saving
       const saveData: SaveInvoiceData = {
         invoiceDate: invoiceState.invoiceDate,
+        dueDate: invoiceState.dueDate,
+        showDueDate: invoiceState.showDueDate,
         invoiceType: invoiceState.invoiceType as any,
         currency: invoiceState.currency as any,
-        exchangeRate: invoiceState.currency === "TND" ? undefined : invoiceState.exchangeRate,
+        exchangeRate:
+          invoiceState.currency === "TND"
+            ? undefined
+            : invoiceState.exchangeRate,
         company: invoiceState.company,
         companyLogo: invoiceState.companyLogo,
         clientId: invoiceState.clientId,
-        lines: invoiceState.lines.map(line => ({
+        lines: invoiceState.lines.map((line) => ({
           description: line.description,
           quantity: line.quantity,
           unit: line.unit,
@@ -314,26 +348,39 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
         totalTVA,
         stampDuty,
         totalTTC,
-        suspensionAuthNumber: invoiceState.invoiceType === "SUSPENSION" ? invoiceState.suspensionAuthNumber : undefined,
-        suspensionValidUntil: invoiceState.invoiceType === "SUSPENSION" ? invoiceState.suspensionValidUntil || undefined : undefined,
-        purchaseOrderNumber: invoiceState.invoiceType === "SUSPENSION" ? invoiceState.suspensionPurchaseOrderNumber : undefined,
+        suspensionAuthNumber:
+          invoiceState.invoiceType === "SUSPENSION"
+            ? invoiceState.suspensionAuthNumber
+            : undefined,
+        suspensionValidUntil:
+          invoiceState.invoiceType === "SUSPENSION"
+            ? invoiceState.suspensionValidUntil || undefined
+            : undefined,
+        purchaseOrderNumber:
+          invoiceState.invoiceType === "SUSPENSION"
+            ? invoiceState.suspensionPurchaseOrderNumber
+            : undefined,
         status: "VALIDÉ",
       };
 
-      const result = mode === "edit" && invoiceId
-        ? await updateInvoice(invoiceId, saveData)
-        : await saveInvoice(saveData);
+      const result =
+        mode === "edit" && invoiceId
+          ? await updateInvoice(invoiceId, saveData)
+          : await saveInvoice(saveData);
 
       if (result.success) {
         toast.success(
-          `Facture ${result.invoiceNumber} ${mode === "edit" ? "modifiée et validée" : "validée"} avec succès!`,
+          `Facture ${result.invoiceNumber} ${
+            mode === "edit" ? "modifiée et validée" : "validée"
+          } avec succès!`,
           {
-            description: mode === "edit" 
-              ? "La facture a été mise à jour et validée."
-              : "La facture a été enregistrée et validée.",
+            description:
+              mode === "edit"
+                ? "La facture a été mise à jour et validée."
+                : "La facture a été enregistrée et validée.",
           }
         );
-        
+
         // Redirect to invoices list or invoice detail
         router.push("/dashboard/invoices");
       } else {
@@ -356,27 +403,40 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
   // Handle save as draft
   const handleSaveAsDraft = async () => {
     setIsSaving(true);
-    
+
     try {
       // Calculate totals
-      const totalHT = invoiceState.lines.reduce((sum, line) => sum + line.lineTotalHT, 0);
-      const totalTVA = invoiceState.lines.reduce((sum, line) => sum + line.lineTVA, 0);
-      const stampDuty = 
-        invoiceState.invoiceType === "EXPORTATION" ? 0 :
-        invoiceState.currency !== "TND" ? 0 :
-        1;
+      const totalHT = invoiceState.lines.reduce(
+        (sum, line) => sum + line.lineTotalHT,
+        0
+      );
+      const totalTVA = invoiceState.lines.reduce(
+        (sum, line) => sum + line.lineTVA,
+        0
+      );
+      const stampDuty =
+        invoiceState.invoiceType === "EXPORTATION"
+          ? 0
+          : invoiceState.currency !== "TND"
+          ? 0
+          : 1;
       const totalTTC = totalHT + totalTVA + stampDuty;
 
       // Prepare data for saving
       const saveData: SaveInvoiceData = {
         invoiceDate: invoiceState.invoiceDate,
+        dueDate: invoiceState.dueDate,
+        showDueDate: invoiceState.showDueDate,
         invoiceType: invoiceState.invoiceType as any,
         currency: invoiceState.currency as any,
-        exchangeRate: invoiceState.currency === "TND" ? undefined : invoiceState.exchangeRate,
+        exchangeRate:
+          invoiceState.currency === "TND"
+            ? undefined
+            : invoiceState.exchangeRate,
         company: invoiceState.company,
         companyLogo: invoiceState.companyLogo,
         clientId: invoiceState.clientId,
-        lines: invoiceState.lines.map(line => ({
+        lines: invoiceState.lines.map((line) => ({
           description: line.description,
           quantity: line.quantity,
           unit: line.unit,
@@ -391,26 +451,39 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
         totalTVA,
         stampDuty,
         totalTTC,
-        suspensionAuthNumber: invoiceState.invoiceType === "SUSPENSION" ? invoiceState.suspensionAuthNumber : undefined,
-        suspensionValidUntil: invoiceState.invoiceType === "SUSPENSION" ? invoiceState.suspensionValidUntil || undefined : undefined,
-        purchaseOrderNumber: invoiceState.invoiceType === "SUSPENSION" ? invoiceState.suspensionPurchaseOrderNumber : undefined,
+        suspensionAuthNumber:
+          invoiceState.invoiceType === "SUSPENSION"
+            ? invoiceState.suspensionAuthNumber
+            : undefined,
+        suspensionValidUntil:
+          invoiceState.invoiceType === "SUSPENSION"
+            ? invoiceState.suspensionValidUntil || undefined
+            : undefined,
+        purchaseOrderNumber:
+          invoiceState.invoiceType === "SUSPENSION"
+            ? invoiceState.suspensionPurchaseOrderNumber
+            : undefined,
         status: "BROUILLON",
       };
 
-      const result = mode === "edit" && invoiceId
-        ? await updateInvoice(invoiceId, saveData)
-        : await saveInvoice(saveData);
+      const result =
+        mode === "edit" && invoiceId
+          ? await updateInvoice(invoiceId, saveData)
+          : await saveInvoice(saveData);
 
       if (result.success) {
         toast.success(
-          `Brouillon ${result.invoiceNumber} ${mode === "edit" ? "mis à jour" : "enregistré"}!`,
+          `Brouillon ${result.invoiceNumber} ${
+            mode === "edit" ? "mis à jour" : "enregistré"
+          }!`,
           {
-            description: mode === "edit"
-              ? "Les modifications ont été enregistrées."
-              : "Vous pourrez le modifier et le valider plus tard.",
+            description:
+              mode === "edit"
+                ? "Les modifications ont été enregistrées."
+                : "Vous pourrez le modifier et le valider plus tard.",
           }
         );
-        
+
         // Redirect to invoices list
         router.push("/dashboard/invoices");
       } else {
@@ -436,9 +509,13 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
     invoiceState.invoiceType === "SUSPENSION" ? "Suspension" : null,
     "Revue",
   ].filter((label): label is string => label !== null);
-  
-  const visibleStep = currentStep <= 3 ? currentStep : 
-    invoiceState.invoiceType === "SUSPENSION" ? currentStep : currentStep + 1;
+
+  const visibleStep =
+    currentStep <= 3
+      ? currentStep
+      : invoiceState.invoiceType === "SUSPENSION"
+      ? currentStep
+      : currentStep + 1;
 
   // Show loading indicator while loading invoice data
   if (isLoadingInvoice) {
@@ -456,27 +533,38 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto">
         {/* Mode Indicator */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">
-              {mode === "edit" ? "Modifier la Facture" : "Nouvelle Facture"}
-            </h1>
-            {mode === "edit" && (
-              <span className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
-                Mode Édition
-              </span>
-            )}
-            {mode === "create" && (
-              <span className="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
-                Mode Création
-              </span>
-            )}
-          </div>
-          {mode === "edit" && (
-            <div className="text-sm text-muted-foreground">
-              Facture: <span className="font-mono font-semibold">{invoiceState.invoiceNumber}</span>
+        <div className="mb-2 flex items-center gap-4">
+          <Button variant="outline" size="icon" onClick={() => router.back()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div className="">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold">
+                {mode === "edit" ? "Modifier la Facture" : "Nouvelle Facture"}
+              </h1>
+              {mode === "edit" && (
+                <span className="px-3 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                  Mode Édition Brouillon
+                </span>
+              )}
+              {mode === "edit" && (
+                <div className="text-sm text-muted-foreground">
+                  Facture:{" "}
+                  <span className="font-mono font-semibold">
+                    {invoiceState.invoiceNumber}
+                  </span>
+                </div>
+              )}
+              {mode === "create" && (
+                <span className="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                  Mode Création
+                </span>
+              )}
             </div>
-          )}
+            <p className="text-muted-foreground text-sm">
+              Créer un nouveau client.
+            </p>
+          </div>
         </div>
         {/* Progress Indicator */}
         <div className="flex items-center justify-center gap-2 mb-4 overflow-x-auto py-3">
@@ -493,14 +581,18 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
                       isCompleted
                         ? "bg-primary text-primary-foreground scale-100"
                         : isActive
-                          ? "bg-primary text-primary-foreground scale-110 ring-2 ring-primary/30 ring-offset-2 shadow-lg"
-                          : "border scale-95"
+                        ? "bg-primary text-primary-foreground scale-110 ring-2 ring-primary/30 ring-offset-2 shadow-lg"
+                        : "border scale-95"
                     }`}
                   >
                     {isCompleted ? (
                       <span className="animate-in fade-in duration-300">✓</span>
                     ) : (
-                      <span className={isActive ? "animate-in zoom-in duration-300" : ""}>
+                      <span
+                        className={
+                          isActive ? "animate-in zoom-in duration-300" : ""
+                        }
+                      >
                         {stepNum}
                       </span>
                     )}
@@ -520,13 +612,11 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
                 {index < stepLabels.length - 1 && (
                   <div
                     className={`h-0.5 w-12 md:w-20 transition-all duration-500 ease-in-out ${
-                      isCompleted 
-                        ? "bg-primary" 
-                        : "bg-slate-300"
+                      isCompleted ? "bg-primary" : "bg-slate-300"
                     }`}
                     style={{
                       transform: isCompleted ? "scaleX(1)" : "scaleX(0.95)",
-                      transformOrigin: "left"
+                      transformOrigin: "left",
                     }}
                   />
                 )}
@@ -583,7 +673,8 @@ export function InvoiceForm({ companyId, invoiceId, mode = "create" }: InvoiceFo
             suspensionData={{
               suspensionAuthNumber: invoiceState.suspensionAuthNumber,
               suspensionValidUntil: invoiceState.suspensionValidUntil,
-              suspensionPurchaseOrderNumber: invoiceState.suspensionPurchaseOrderNumber,
+              suspensionPurchaseOrderNumber:
+                invoiceState.suspensionPurchaseOrderNumber,
             }}
             onBack={() => setCurrentStep(3)}
             onNext={handleStep4Complete}

@@ -14,7 +14,7 @@ export default async function Page() {
         <Link href="/dashboard/clients/create">
           <Button variant="outline" size="sm">
             <Plus className="h-4 w-4" />
-            <span className="hidden lg:inline">Add Client</span>
+            <span className="hidden lg:inline">Créer client</span>
           </Button>
         </Link>
       </div>{" "}

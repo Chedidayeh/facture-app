@@ -27,6 +27,8 @@ export function RectifyInvoiceForm({ originalInvoice }: RectifyInvoiceFormProps)
   // Initialize state from original invoice
   const [invoiceState, setInvoiceState] = React.useState<InvoiceState>(() => ({
     invoiceDate: new Date(), // New date for rectificative invoice
+    dueDate: originalInvoice.dueDate || new Date(),
+    showDueDate: originalInvoice.showDueDate !== undefined ? originalInvoice.showDueDate : true,
     invoiceType: originalInvoice.type as InvoiceType,
     currency: originalInvoice.currency as Currency,
     exchangeRate: originalInvoice.exchangeRate || 1,
@@ -43,7 +45,7 @@ export function RectifyInvoiceForm({ originalInvoice }: RectifyInvoiceFormProps)
       address: originalInvoice.client.address,
       country: originalInvoice.client.country,
       fiscalMatricule: originalInvoice.client.taxNumber || "",
-      isProfessional: originalInvoice.client.isProfessional,
+      type: originalInvoice.client.type,
     },
     clientId: originalInvoice.client.id,
     lines: originalInvoice.items.map((item, index) => ({
@@ -70,7 +72,7 @@ export function RectifyInvoiceForm({ originalInvoice }: RectifyInvoiceFormProps)
     setCurrentStep((prev) => Math.min(prev + 1, 5) as Step);
   };
 
-  const handleClientNext = (client: { name: string; address: string; country: string; fiscalMatricule: string; isProfessional: boolean }, clientId: string) => {
+  const handleClientNext = (client: { name: string; address: string; country: string; fiscalMatricule: string; type: string }, clientId: string) => {
     setInvoiceState((prev) => ({ ...prev, client, clientId }));
     setCurrentStep((prev) => Math.min(prev + 1, 5) as Step);
   };
@@ -107,6 +109,8 @@ export function RectifyInvoiceForm({ originalInvoice }: RectifyInvoiceFormProps)
 
       const saveData: SaveInvoiceData = {
         invoiceDate: invoiceState.invoiceDate,
+        dueDate: invoiceState.dueDate,
+        showDueDate: invoiceState.showDueDate,
         invoiceType: invoiceState.invoiceType,
         currency: invoiceState.currency,
         exchangeRate: invoiceState.currency !== "TND" ? invoiceState.exchangeRate : undefined,

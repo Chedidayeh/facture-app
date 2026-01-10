@@ -10,10 +10,13 @@ export interface InvoiceDetails {
   id: string;
   invoiceNumber: string;
   date: Date;
+  dueDate: Date;
+  showDueDate: boolean;
   exerciseYear: number;
   documentType: string;
   type: string;
   status: string;
+  paymentStatus: string;
   currency: string;
   exchangeRate: number | null;
   totalHT: number;
@@ -53,7 +56,7 @@ export interface InvoiceDetails {
     address: string;
     taxNumber: string | null;
     country: string;
-    isProfessional: boolean;
+    type : string;
   };
   company: {
     name: string;
@@ -80,7 +83,9 @@ export interface InvoiceDetails {
   validatedAt: Date | null;
 }
 
-export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetails | null> {
+export async function getInvoiceDetails(
+  invoiceId: string
+): Promise<InvoiceDetails | null> {
   try {
     const invoice = await prisma.invoice.findUnique({
       where: {
@@ -91,7 +96,7 @@ export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetai
         company: true,
         items: {
           orderBy: {
-            id: 'asc',
+            id: "asc",
           },
         },
         parentInvoice: {
@@ -110,7 +115,7 @@ export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetai
             status: true,
           },
           orderBy: {
-            date: 'desc',
+            date: "desc",
           },
         },
         rectifiesInvoice: {
@@ -129,7 +134,7 @@ export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetai
             status: true,
           },
           orderBy: {
-            date: 'desc',
+            date: "desc",
           },
         },
       },
@@ -143,10 +148,13 @@ export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetai
       id: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       date: invoice.date,
+      dueDate: invoice.dueDate,
+      showDueDate: invoice.showDueDate,
       exerciseYear: invoice.exerciseYear,
       documentType: invoice.documentType,
       type: invoice.type,
       status: invoice.status,
+      paymentStatus: invoice.paymentStatus,
       currency: invoice.currency,
       exchangeRate: invoice.exchangeRate ? Number(invoice.exchangeRate) : null,
       totalHT: Number(invoice.totalHT),
@@ -157,12 +165,12 @@ export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetai
       suspensionValidUntil: invoice.suspensionValidUntil,
       purchaseOrderNumber: invoice.purchaseOrderNumber,
       parentInvoice: invoice.parentInvoice,
-      creditNotes: invoice.creditNotes.map(cn => ({
+      creditNotes: invoice.creditNotes.map((cn) => ({
         ...cn,
         totalTTC: Number(cn.totalTTC),
       })),
       rectifiesInvoice: invoice.rectifiesInvoice,
-      rectificativeInvoices: invoice.rectificativeInvoices.map(ri => ({
+      rectificativeInvoices: invoice.rectificativeInvoices.map((ri) => ({
         ...ri,
         totalTTC: Number(ri.totalTTC),
       })),
@@ -172,7 +180,7 @@ export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetai
         address: invoice.client.address,
         taxNumber: invoice.client.taxNumber,
         country: invoice.client.country,
-        isProfessional: invoice.client.type === "PROFESSIONNEL",
+        type : invoice.client.type,
       },
       company: {
         name: invoice.company.name,
@@ -182,7 +190,7 @@ export async function getInvoiceDetails(invoiceId: string): Promise<InvoiceDetai
         email: invoice.company.email,
         logo: invoice.company.logo,
       },
-      items: invoice.items.map(item => ({
+      items: invoice.items.map((item) => ({
         id: item.id,
         description: item.description,
         quantity: Number(item.quantity),
@@ -212,6 +220,7 @@ export interface InvoiceTableData {
   documentType: string;
   type: string;
   status: string;
+  paymentStatus: string;
   currency: string;
   totalTTC: number;
   exerciseYear: number;
@@ -288,9 +297,6 @@ export async function getInvoices(): Promise<InvoiceTableData[]> {
         case "VALIDÉ":
           statusLabel = "VALIDÉ";
           break;
-        case "PAYÉ":
-          statusLabel = "PAYÉ";
-          break;
       }
 
       return {
@@ -301,6 +307,7 @@ export async function getInvoices(): Promise<InvoiceTableData[]> {
         documentType: invoice.documentType,
         type: typeLabel,
         status: statusLabel,
+        paymentStatus: invoice.paymentStatus,
         currency: invoice.currency,
         totalTTC: Number(invoice.totalTTC),
         exerciseYear: invoice.exerciseYear,
@@ -324,7 +331,12 @@ export async function getInvoices(): Promise<InvoiceTableData[]> {
 
 export async function generateInvoicePDF(
   invoiceId: string
-): Promise<{ success: boolean; pdfData?: string; filename?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  pdfData?: string;
+  filename?: string;
+  error?: string;
+}> {
   try {
     // Fetch invoice details
     const invoice = await getInvoiceDetails(invoiceId);
@@ -340,7 +352,7 @@ export async function generateInvoicePDF(
     const element = React.createElement(InvoicePDFTemplate, { invoice });
     // @ts-expect-error - Type mismatch between InvoicePDFTemplate and DocumentProps is expected, works at runtime
     const blob = await pdf(element).toBlob();
-    
+
     // Convert blob to buffer then to base64
     const arrayBuffer = await blob.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -413,13 +425,17 @@ export async function duplicateInvoice(
       },
     });
 
-    const newInvoiceNumber = `FAC-${currentYear}-${String(sequence.lastNumber).padStart(5, "0")}`;
+    const newInvoiceNumber = `FAC-${currentYear}-${String(
+      sequence.lastNumber
+    ).padStart(5, "0")}`;
 
     // Create the duplicate invoice with its items
     const duplicatedInvoice = await prisma.invoice.create({
       data: {
         invoiceNumber: newInvoiceNumber,
         date: new Date(), // Use current date for the duplicate
+        dueDate: originalInvoice.dueDate,
+        showDueDate: originalInvoice.showDueDate,
         exerciseYear: currentYear,
         type: originalInvoice.type,
         status: "BROUILLON",
@@ -582,7 +598,8 @@ export async function markAsPaid(
     if (invoice.status !== "VALIDÉ") {
       return {
         success: false,
-        error: "Seules les factures validées peuvent être marquées comme payées",
+        error:
+          "Seules les factures validées peuvent être marquées comme payées",
       };
     }
 
@@ -592,7 +609,7 @@ export async function markAsPaid(
         id: invoiceId,
       },
       data: {
-        status: "PAYÉ",
+        paymentStatus: "PAYÉ",
       },
     });
 
@@ -614,7 +631,12 @@ export async function createCreditNote(
   invoiceId: string,
   type: "TOTAL" | "PARTIAL",
   items?: Array<{ itemId: string; quantity: number }>
-): Promise<{ success: boolean; creditNoteId?: string; creditNoteNumber?: string; error?: string }> {
+): Promise<{
+  success: boolean;
+  creditNoteId?: string;
+  creditNoteNumber?: string;
+  error?: string;
+}> {
   try {
     // Fetch the original invoice with all its items
     const originalInvoice = await prisma.invoice.findUnique({
@@ -634,7 +656,10 @@ export async function createCreditNote(
     }
 
     // Check if the invoice is validated or paid
-    if (originalInvoice.status !== "VALIDÉ" && originalInvoice.status !== "PAYÉ") {
+    if (
+      originalInvoice.status !== "VALIDÉ" &&
+      originalInvoice.paymentStatus !== "PAYÉ"
+    ) {
       return {
         success: false,
         error: "Seules les factures validées ou payées peuvent avoir un avoir",
@@ -671,7 +696,9 @@ export async function createCreditNote(
       },
     });
 
-    const creditNoteNumber = `AV-${currentYear}-${String(sequence.lastNumber).padStart(5, "0")}`;
+    const creditNoteNumber = `AV-${currentYear}-${String(
+      sequence.lastNumber
+    ).padStart(5, "0")}`;
 
     // Prepare credit note items
     let creditNoteItems;
@@ -685,7 +712,7 @@ export async function createCreditNote(
         const lineHT = Number(item.lineTotalHT) * -1;
         const lineTVA = Number(item.lineTVA) * -1;
         const lineTTC = Number(item.lineTotalTTC) * -1;
-        
+
         totalHT += lineHT;
         totalTVA += lineTVA;
         totalTTC += lineTTC;
@@ -707,19 +734,27 @@ export async function createCreditNote(
       if (!items || items.length === 0) {
         return {
           success: false,
-          error: "Vous devez sélectionner au moins un article pour un avoir partiel",
+          error:
+            "Vous devez sélectionner au moins un article pour un avoir partiel",
         };
       }
 
       creditNoteItems = items.map((selectedItem) => {
-        const originalItem = originalInvoice.items.find((i) => i.id === selectedItem.itemId);
+        const originalItem = originalInvoice.items.find(
+          (i) => i.id === selectedItem.itemId
+        );
         if (!originalItem) {
           throw new Error(`Article introuvable: ${selectedItem.itemId}`);
         }
 
         // Validate quantity
-        if (selectedItem.quantity <= 0 || selectedItem.quantity > Number(originalItem.quantity)) {
-          throw new Error(`Quantité invalide pour l'article ${originalItem.description}`);
+        if (
+          selectedItem.quantity <= 0 ||
+          selectedItem.quantity > Number(originalItem.quantity)
+        ) {
+          throw new Error(
+            `Quantité invalide pour l'article ${originalItem.description}`
+          );
         }
 
         // Calculate proportional amounts
@@ -747,15 +782,24 @@ export async function createCreditNote(
     }
 
     // Calculate stamp duty (negative if original had stamp duty)
-    const stampDuty = Number(originalInvoice.stampDuty) > 0 && type === "TOTAL" 
-      ? Number(originalInvoice.stampDuty) * -1 
-      : 0;
+    const stampDuty =
+      Number(originalInvoice.stampDuty) > 0 && type === "TOTAL"
+        ? Number(originalInvoice.stampDuty) * -1
+        : 0;
 
     // Create the credit note
+    // For credit notes, dueDate should match original invoice's dueDate pattern
+    // but showDueDate is always false since credit notes don't require due date display
+    const creditNoteDueDate = new Date(
+      new Date().getTime() + 7 * 24 * 60 * 60 * 1000
+    ); // +7 days default like invoices
+
     const creditNote = await prisma.invoice.create({
       data: {
         invoiceNumber: creditNoteNumber,
         date: new Date(),
+        dueDate: creditNoteDueDate, // Follow same pattern as invoices (+7 days)
+        showDueDate: false, // Credit notes never show due date
         exerciseYear: currentYear,
         documentType: "AVOIR",
         type: originalInvoice.type,
@@ -787,6 +831,127 @@ export async function createCreditNote(
     return {
       success: false,
       error: error.message || "Erreur lors de la création de l'avoir",
+    };
+  }
+}
+
+export async function markAsPaidWithPayment(
+  paymentData: {
+    invoiceId: string;
+    paymentMethod: string;
+    paymentDate: Date;
+    description: string | null;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Fetch the invoice first
+    const invoice = await prisma.invoice.findUnique({
+      where: {
+        id: paymentData.invoiceId,
+      },
+    });
+
+    if (!invoice) {
+      return {
+        success: false,
+        error: "Facture introuvable",
+      };
+    }
+
+    // Check if the invoice is validated
+    if (invoice.status !== "VALIDÉ") {
+      return {
+        success: false,
+        error: "Seules les factures validées peuvent être marquées comme payées",
+      };
+    }
+
+    // Use transaction to update invoice and create payment record
+    await prisma.$transaction(async (tx) => {
+      // Create payment record
+      await tx.payment.create({
+        data: {
+          invoiceId: paymentData.invoiceId,
+          amount: invoice.totalTTC,
+          paymentMethod: paymentData.paymentMethod,
+          paymentDate: paymentData.paymentDate,
+          description: paymentData.description,
+        },
+      });
+
+      // Update invoice paymentStatus to PAYÉ
+      await tx.invoice.update({
+        where: {
+          id: paymentData.invoiceId,
+        },
+        data: {
+          paymentStatus: "PAYÉ",
+        },
+      });
+    });
+
+    revalidatePath("/dashboard/invoices");
+
+    return {
+      success: true,
+    };
+  } catch (error: any) {
+    console.error("Error marking invoice as paid:", error);
+    return {
+      success: false,
+      error: error.message || "Erreur lors de l'enregistrement du paiement",
+    };
+  }
+}
+
+export interface PaymentRecord {
+  id: string;
+  amount: number;
+  paymentMethod: string;
+  paymentDate: Date;
+  description: string | null;
+  createdAt: Date;
+}
+
+export async function getInvoicePayments(
+  invoiceId: string
+): Promise<{ success: boolean; payments?: PaymentRecord[]; error?: string }> {
+  try {
+    const payments = await prisma.payment.findMany({
+      where: {
+        invoiceId: invoiceId,
+      },
+      select: {
+        id: true,
+        amount: true,
+        paymentMethod: true,
+        paymentDate: true,
+        description: true,
+        createdAt: true,
+      },
+      orderBy: {
+        paymentDate: "desc",
+      },
+    });
+
+    const transformedPayments: PaymentRecord[] = payments.map((payment) => ({
+      id: payment.id,
+      amount: Number(payment.amount),
+      paymentMethod: payment.paymentMethod,
+      paymentDate: payment.paymentDate,
+      description: payment.description,
+      createdAt: payment.createdAt,
+    }));
+
+    return {
+      success: true,
+      payments: transformedPayments,
+    };
+  } catch (error: any) {
+    console.error("Error fetching invoice payments:", error);
+    return {
+      success: false,
+      error: error.message || "Erreur lors de la récupération des paiements",
     };
   }
 }
